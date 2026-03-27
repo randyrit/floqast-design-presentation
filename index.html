@@ -1,0 +1,3151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evolving the Design System — FloQast</title>
+<!-- v2 -->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
+  @import url('https://fonts.cdnfonts.com/css/museo-sans-rounded');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --dark-green: #13362A;
+    --sage: #6AA185;
+    --light-green: #E1EDE6;
+    --off-white: #DEE2E0;
+    --near-black: #0C1E18;
+    --orange: #FF8C42;
+    --white: #FFFFFF;
+    --cream: #F4F7F5;
+    --font-display: 'Museo Sans', 'Museo Sans Rounded', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--dark-green);
+    color: var(--near-black);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Progress Bar ─── */
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 1000;
+    background: var(--orange);
+    transition: width .6s cubic-bezier(.22,1,.36,1);
+  }
+
+  /* ─── Math Background ─── */
+  #math-bg {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
+    transition: opacity .7s ease;
+  }
+  .math-sym {
+    position: absolute;
+    font-family: var(--font-body);
+    color: var(--sage);
+    opacity: 0;
+    will-change: transform, opacity;
+    animation: drift linear infinite;
+    user-select: none;
+  }
+  @keyframes drift {
+    0%   { transform: translateY(105vh) rotate(0deg); opacity: 0; }
+    5%   { opacity: var(--peak-opacity, 0.07); }
+    90%  { opacity: var(--peak-opacity, 0.07); }
+    100% { transform: translateY(-10vh) rotate(var(--rot, 120deg)); opacity: 0; }
+  }
+
+  /* ─── Slide Container ─── */
+  #deck {
+    position: relative; width: 100%; height: 100%; z-index: 1;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1);
+    transform: translateY(30px);
+    padding: 60px 40px;
+  }
+  .slide.active {
+    opacity: 1; pointer-events: auto; transform: translateY(0);
+  }
+  .slide-inner {
+    width: 100%; max-width: 1100px; margin: 0 auto;
+  }
+
+  /* ─── Navigation Dots ─── */
+  #nav-dots {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; z-index: 100;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--off-white); border: none; cursor: pointer;
+    transition: all .4s cubic-bezier(.22,1,.36,1);
+    opacity: 0.4;
+  }
+  .dot.active {
+    background: var(--orange);
+    opacity: 1;
+    transform: scale(1.3);
+  }
+
+  /* ─── Fullscreen Button ─── */
+  #fullscreen-btn {
+    position: fixed; top: 20px; right: 24px; z-index: 200;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px; cursor: pointer; padding: 8px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .3s ease;
+    color: var(--off-white); opacity: 0.7;
+  }
+  #fullscreen-btn:hover { opacity: 1; background: rgba(255,255,255,0.15); }
+  #fullscreen-btn .material-symbols-outlined { font-size: 22px; }
+
+  /* ─── Slide Counter ─── */
+  #slide-counter {
+    position: fixed; bottom: 34px; right: 40px; z-index: 100;
+    font-family: var(--font-body); font-size: 13px; letter-spacing: 0.08em;
+    color: var(--off-white); opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─── Arrow Buttons ─── */
+  .arrow-btn {
+    position: fixed; top: 50%; z-index: 100;
+    transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--off-white); opacity: 0.4;
+    transition: opacity .3s, transform .3s;
+    font-size: 28px; padding: 16px;
+  }
+  .arrow-btn:hover { opacity: 0.7; }
+  .arrow-btn.left  { left: 16px; }
+  .arrow-btn.right { right: 16px; }
+
+  /* ═══════════════════════════════════════
+     SLIDE STYLES
+     ═══════════════════════════════════════ */
+
+  /* ── Slide 1: Title ── */
+  .slide-title {
+    background: #0C1E18;
+    text-align: center;
+    overflow: hidden;
+  }
+  .slide-title .slide-inner { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+  .slide-title .eyebrow {
+    font-family: var(--font-body); font-size: 13px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--sage); font-weight: 600;
+  }
+  .slide-title h1 {
+    font-family: var(--font-display); font-size: clamp(42px, 6vw, 80px);
+    color: var(--white); line-height: 1.08; font-weight: 400;
+    max-width: 800px;
+  }
+  .slide-title h1 em { color: var(--sage); font-style: italic; }
+  .slide-title .subtitle {
+    font-size: clamp(16px, 2vw, 20px); color: var(--off-white);
+    max-width: 520px; line-height: 1.6; opacity: 0.85;
+  }
+  .slide-title .presenter {
+    margin-top: 32px; display: flex; align-items: center; gap: 14px;
+    color: var(--off-white); font-size: 15px; opacity: 0.8;
+  }
+  .slide-title .presenter .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--sage); display: flex; align-items: center;
+    justify-content: center; font-weight: 700; color: var(--dark-green); font-size: 14px;
+  }
+  .slide-title .divider-line {
+    width: 48px; height: 2px; background: var(--orange); border-radius: 1px;
+  }
+
+  /* ── Slide 2: The Audit ── */
+  .slide-audit { background: var(--cream); }
+  .slide-audit .slide-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+  .slide-audit .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dark-green); font-weight: 600; margin-bottom: 16px; opacity: 0.7;
+  }
+  .slide-audit h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); line-height: 1.12; margin-bottom: 24px;
+  }
+  .slide-audit p.lead {
+    font-size: 17px; color: var(--near-black); opacity: 0.75; line-height: 1.7;
+    margin-bottom: 16px;
+  }
+  .slide-audit .audit-points { display: flex; flex-direction: column; gap: 12px; }
+  .slide-audit .audit-point {
+    font-size: 15px; color: var(--near-black); opacity: 0.8; line-height: 1.6;
+    padding-left: 20px; position: relative;
+  }
+  .slide-audit .audit-point::before {
+    content: ''; position: absolute; left: 0; top: 9px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--orange);
+  }
+  .slide-audit .audit-screenshot {
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(0,0,0,0.06);
+  }
+  .slide-audit .audit-screenshot img {
+    width: 100%; height: auto; display: block;
+  }
+  .slide-audit .screenshot-caption {
+    font-size: 12px; color: var(--near-black); opacity: 0.6;
+    text-align: center; margin-top: 10px; font-style: italic;
+  }
+
+  /* ── Slide 3: Old Product UI ── */
+  .slide-old-ui { background: var(--cream); }
+  .slide-old-ui .slide-inner { max-width: 1020px; }
+  .slide-old-ui .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dark-green); font-weight: 600; margin-bottom: 16px; opacity: 0.7;
+  }
+  .slide-old-ui h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); line-height: 1.12; margin-bottom: 24px;
+  }
+  .old-ui-wrap {
+    position: relative; border-radius: 8px; overflow: visible;
+  }
+  .old-ui-wrap img {
+    width: 100%; height: auto; display: block;
+    border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  }
+  /* Callout annotations */
+  .ui-callout {
+    position: absolute; z-index: 10;
+    display: flex; align-items: flex-start; gap: 8px;
+    opacity: 0; transform: translateY(12px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .slide.active .ui-callout.callout-nav { opacity: 1; transform: translateY(0); transition-delay: 0.6s; }
+  .slide.active .ui-callout.callout-btns { opacity: 1; transform: translateY(0); transition-delay: 1.2s; }
+  .slide.active .ui-callout.callout-orange { opacity: 1; transform: translateY(0); transition-delay: 1.8s; }
+  .ui-callout-bubble {
+    background: var(--white); color: var(--near-black); border-radius: 8px;
+    padding: 10px 14px; font-size: 12px; line-height: 1.5;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12); max-width: 220px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .ui-callout-bubble strong { color: var(--dark-green); display: block; font-size: 11px; letter-spacing: 0.04em; margin-bottom: 3px; font-weight: 700; }
+  .ui-callout-num {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--orange);
+    color: var(--white); font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  /* Position callouts relative to the image */
+  .ui-callout.callout-nav { top: 0; right: -248px; }
+  .ui-callout.callout-btns { top: 16%; right: -150px; }
+  .ui-callout.callout-orange { top: 49%; left: -150px; }
+
+  /* ── Slide 4: Accessibility Findings ── */
+  .slide-findings { background: var(--white); }
+  .slide-findings.active { overflow-y: auto; align-items: flex-start; }
+  .slide-findings .slide-inner { max-width: 1060px; padding-top: 20px; padding-bottom: 80px; }
+  .slide-findings .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dark-green); font-weight: 600; margin-bottom: 16px; opacity: 0.7;
+    text-align: center;
+  }
+  .slide-findings h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); line-height: 1.12; margin-bottom: 12px; text-align: center;
+  }
+  .slide-findings .findings-subtitle {
+    font-size: 14px; color: var(--near-black); opacity: 0.55; text-align: center;
+    margin-bottom: 32px; letter-spacing: 0.01em;
+  }
+  .findings-screenshot-wrap {
+    position: relative; display: flex; gap: 0;
+  }
+  .findings-screenshot-col {
+    flex: 1; min-width: 0; position: relative;
+  }
+  .findings-screenshot-col img {
+    width: 100%; height: auto; display: block;
+    border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .findings-callouts-col {
+    width: 260px; flex-shrink: 0; position: relative;
+  }
+  /* Callout markers on image */
+  .findings-marker {
+    position: absolute; width: 28px; height: 28px;
+    border-radius: 50%; background: var(--orange);
+    color: var(--white); font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(240,106,31,0.4);
+    z-index: 5; opacity: 0; transform: scale(0.5);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .slide.active .findings-marker { opacity: 1; transform: scale(1); }
+  .slide.active .findings-marker:nth-child(1) { transition-delay: 0.5s; }
+  .slide.active .findings-marker:nth-child(2) { transition-delay: 0.9s; }
+  .slide.active .findings-marker:nth-child(3) { transition-delay: 1.3s; }
+  .slide.active .findings-marker:nth-child(4) { transition-delay: 1.7s; }
+  .slide.active .findings-marker:nth-child(5) { transition-delay: 2.1s; }
+  .findings-marker::after {
+    content: ''; position: absolute; inset: -4px;
+    border-radius: 50%; border: 2px solid var(--orange); opacity: 0.4;
+    animation: marker-pulse 2s ease-in-out infinite;
+  }
+  @keyframes marker-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50% { transform: scale(1.3); opacity: 0; }
+  }
+  /* Finding cards below image */
+  .findings-cards {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-top: 28px;
+  }
+  .finding-card {
+    background: var(--cream); border-radius: 12px; padding: 16px 18px;
+    border: 1px solid rgba(19,54,42,0.06);
+    display: flex; gap: 12px; align-items: flex-start;
+    opacity: 0; transform: translateY(12px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .slide.active .finding-card:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 0.6s; }
+  .slide.active .finding-card:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 1.0s; }
+  .slide.active .finding-card:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 1.4s; }
+  .slide.active .finding-card:nth-child(4) { opacity: 1; transform: translateY(0); transition-delay: 1.8s; }
+  .slide.active .finding-card:nth-child(5) { opacity: 1; transform: translateY(0); transition-delay: 2.2s; }
+  .finding-num {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    background: var(--orange); color: var(--white);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .finding-card .finding-tag {
+    display: inline-block; font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; margin-bottom: 4px;
+  }
+  .finding-tag.contrast { background: #F8D7DA; color: #842029; }
+  .finding-tag.inconsistency { background: #FFF3CD; color: #664D03; }
+  .finding-tag.maturity { background: #D4EDDA; color: #155724; }
+  .finding-card h3 { font-size: 13px; font-weight: 700; color: var(--dark-green); margin-bottom: 3px; }
+  .finding-card p { font-size: 12px; color: var(--near-black); opacity: 0.7; line-height: 1.45; }
+  .findings-cards .finding-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .findings-scroll-hint {
+    text-align: center; margin-top: 20px; font-size: 12px;
+    color: var(--near-black); opacity: 0.35; letter-spacing: 0.05em;
+  }
+
+  /* ── Slide 4: Going Public ── */
+  .slide-public { background: var(--dark-green); }
+  .slide-public .slide-inner { text-align: center; max-width: 900px; }
+  .slide-public .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; margin-bottom: 16px;
+  }
+  .slide-public h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--white); line-height: 1.15; margin-bottom: 20px;
+  }
+  .slide-public h2 em { color: var(--sage); font-style: italic; }
+  .slide-public .public-lead {
+    font-size: 17px; color: var(--off-white); opacity: 0.85; line-height: 1.7;
+    max-width: 640px; margin: 0 auto 48px;
+  }
+  .public-risks {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    text-align: left;
+  }
+  .risk-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 28px 24px;
+  }
+  .risk-card .risk-icon {
+    font-family: 'Material Symbols Outlined'; font-size: 28px;
+    margin-bottom: 16px; display: block; color: var(--white);
+    font-weight: normal; font-style: normal; line-height: 1;
+    letter-spacing: normal; text-transform: none; white-space: nowrap;
+    -webkit-font-smoothing: antialiased;
+  }
+  .risk-card h3 { font-size: 16px; font-weight: 600; color: var(--white); margin-bottom: 8px; }
+  .risk-card p  { font-size: 13px; color: var(--off-white); opacity: 0.85; line-height: 1.6; }
+
+  /* ── Slide 3: Principles ── */
+  .slide-principles { background: var(--dark-green); }
+  .slide-principles .slide-inner { text-align: center; }
+  .slide-principles .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; margin-bottom: 16px;
+  }
+  .slide-principles h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--white); margin-bottom: 56px;
+  }
+  .principles-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px;
+    text-align: left;
+  }
+  .principle-item {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px; padding: 32px 24px;
+    transition: background .3s, border-color .3s;
+  }
+  .principle-item:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: var(--sage);
+  }
+  .principle-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(106,161,133,0.15); color: var(--sage);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Material Symbols Outlined'; font-size: 24px;
+    font-weight: normal; font-style: normal; line-height: 1;
+    letter-spacing: normal; text-transform: none;
+    -webkit-font-smoothing: antialiased;
+    margin-bottom: 20px;
+  }
+  .principle-item h3 { color: var(--white); font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .principle-item p  { color: var(--off-white); font-size: 14px; opacity: 0.8; line-height: 1.6; }
+
+  /* ── Slide 4: Typography ── */
+  .slide-typography { background: var(--white); overflow-y: auto; align-items: flex-start; }
+  .slide-typography .slide-inner { max-width: 1000px; padding-bottom: 40px; }
+  .slide-typography .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; margin-bottom: 16px; text-align: center;
+  }
+  .slide-typography > .slide-inner > h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 48px; text-align: center;
+  }
+  .typo-columns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 56px;
+  }
+  .typo-col-header {
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--sage); font-weight: 700; margin-bottom: 28px;
+    padding-bottom: 12px; border-bottom: 2px solid var(--light-green);
+  }
+  .typo-specimen {
+    margin-bottom: 24px; padding-bottom: 24px;
+    border-bottom: 1px solid rgba(19,54,42,0.06);
+  }
+  .typo-specimen:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .typo-specimen .typo-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .typo-specimen .typo-tag {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 700; color: var(--white); background: var(--sage);
+    padding: 3px 10px; border-radius: 20px;
+    font-family: var(--font-body);
+  }
+  .typo-specimen .typo-details {
+    font-size: 11px; color: var(--near-black); opacity: 0.6;
+    font-family: var(--font-body); font-variant-numeric: tabular-nums;
+  }
+  .typo-specimen .typo-sample {
+    color: var(--dark-green); line-height: 1.25;
+  }
+  .typo-specimen .typo-sample-sub {
+    color: var(--near-black); opacity: 0.65; margin-top: 4px;
+    font-family: var(--font-body); font-size: 13px; line-height: 1.5;
+  }
+
+  /* ── Slide 5: Typography & Spacing ── */
+  .slide-type { background: var(--white); }
+  .slide-type .slide-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: start; }
+  .slide-type .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dark-green); font-weight: 600; margin-bottom: 16px; opacity: 0.7;
+  }
+  .slide-type h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 48px; line-height: 1.1;
+  }
+  .type-scale { display: flex; flex-direction: column; gap: 18px; }
+  .type-row {
+    display: flex; align-items: baseline; gap: 20px;
+    padding-bottom: 18px; border-bottom: 1px solid rgba(19,54,42,0.08);
+  }
+  .type-row .size-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--dark-green); font-weight: 600; width: 64px; flex-shrink: 0; opacity: 0.7;
+  }
+  .type-row .sample { color: var(--dark-green); line-height: 1.2; }
+  .spacing-section h3 {
+    font-size: 15px; font-weight: 600; color: var(--dark-green); margin-bottom: 24px;
+  }
+  .spacing-tokens { display: flex; flex-direction: column; gap: 14px; }
+  .spacing-row {
+    display: flex; align-items: center; gap: 16px;
+  }
+  .spacing-row .token-name {
+    font-size: 13px; font-weight: 500; color: var(--dark-green);
+    width: 56px; flex-shrink: 0; font-variant-numeric: tabular-nums;
+  }
+  .spacing-row .token-bar {
+    height: 28px; border-radius: 6px;
+    background: var(--dark-green); opacity: 0.15;
+    transition: opacity .3s;
+  }
+  .spacing-row:hover .token-bar { opacity: 0.35; }
+  .spacing-row .token-value {
+    font-size: 12px; color: var(--near-black); opacity: 0.65;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Slide 6: Components ── */
+  .slide-components { background: var(--white); }
+  .slide-components .slide-inner { text-align: center; }
+  .slide-components .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dark-green); font-weight: 600; margin-bottom: 16px; opacity: 0.7;
+  }
+  .slide-components h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 56px;
+  }
+  .arch-diagram {
+    display: flex; flex-direction: column; gap: 0;
+    max-width: 720px; margin: 0 auto; position: relative;
+  }
+  .arch-layer {
+    padding: 28px 36px; text-align: left;
+    display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid rgba(19,54,42,0.06);
+    position: relative;
+  }
+  .arch-layer:first-child { border-radius: 16px 16px 0 0; }
+  .arch-layer:last-child  { border-radius: 0 0 16px 16px; }
+  .arch-layer .layer-name { font-weight: 600; font-size: 16px; }
+  .arch-layer .layer-desc { font-size: 13px; color: var(--near-black); opacity: 0.75; max-width: 320px; }
+  .arch-layer .layer-tag  {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 20px; font-weight: 600;
+  }
+  .layer-app    { background: #FFF4EE; }
+  .layer-app .layer-name { color: #C4520E; }
+  .layer-app .layer-tag  { background: #FDDCC9; color: #C4520E; }
+  .layer-pattern  { background: #EEF6F1; }
+  .layer-pattern .layer-name { color: #3D7A5C; }
+  .layer-pattern .layer-tag  { background: #D4EBDE; color: #3D7A5C; }
+  .layer-core  { background: #F5F6F5; }
+  .layer-core .layer-name { color: var(--dark-green); }
+  .layer-core .layer-tag  { background: #E2E5E3; color: var(--dark-green); }
+  .layer-token  { background: #F9FAFA; }
+  .layer-token .layer-name { color: #5C6B64; }
+  .layer-token .layer-tag  { background: #E8EBEA; color: #5C6B64; }
+  .arch-arrow-col {
+    position: absolute; right: -52px; top: 0; bottom: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--dark-green); opacity: 0.25; font-size: 14px; gap: 4px;
+  }
+  .arch-arrow-col span { writing-mode: vertical-rl; letter-spacing: 0.15em; font-size: 11px; text-transform: uppercase; }
+
+  /* ── Slide 7: Impact ── */
+  .slide-impact { background: var(--cream); }
+  .slide-impact .slide-inner { text-align: center; }
+  .slide-impact .label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; margin-bottom: 16px;
+  }
+  .slide-impact h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 56px;
+  }
+  .metrics-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    max-width: 900px; margin: 0 auto 48px;
+  }
+  .metric-card {
+    background: var(--white); border-radius: 16px; padding: 32px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    transition: transform .3s;
+  }
+  .metric-card:hover { transform: translateY(-3px); }
+  .metric-card .metric-value {
+    font-family: var(--font-display); font-size: 44px;
+    color: var(--dark-green); line-height: 1;
+  }
+  .metric-card .metric-value .accent { color: var(--orange); }
+  .metric-card .metric-label {
+    font-size: 13px; color: var(--near-black); opacity: 0.7;
+    margin-top: 10px; line-height: 1.4;
+  }
+  .before-after {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 32px;
+    max-width: 740px; margin: 0 auto; align-items: center;
+  }
+  .ba-col { text-align: left; }
+  .ba-col h4 {
+    font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase;
+    font-weight: 600; margin-bottom: 16px;
+  }
+  .ba-col.before h4 { color: #9BA3A0; }
+  .ba-col.after h4  { color: var(--sage); }
+  .ba-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .ba-col ul li {
+    font-size: 14px; color: var(--near-black); opacity: 0.85;
+    padding-left: 20px; position: relative; line-height: 1.5;
+  }
+  .ba-col.before ul li::before { content: ''; position: absolute; left: 0; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: #B0B5B2; }
+  .ba-col.after ul li::before  { content: ''; position: absolute; left: 0; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--sage); }
+  .ba-divider {
+    width: 2px; height: 120px; background: linear-gradient(to bottom, transparent, var(--off-white), transparent);
+    border-radius: 1px;
+  }
+
+  /* ── Slide: Color Palette ── */
+  .slide-palette { background: var(--dark-green); }
+  .palette-grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px;
+  }
+  .palette-card {
+    background: #fff; border-radius: 12px; padding: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .palette-title {
+    font-size: 13px; font-weight: 700; color: var(--near-black); margin-bottom: 2px;
+  }
+  .palette-use {
+    font-size: 10px; color: var(--near-black); opacity: 0.55; margin-bottom: 14px; line-height: 1.4;
+  }
+  .palette-swatches {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .swatch {
+    height: 32px; border-radius: 6px; cursor: pointer;
+    position: relative; transition: transform .2s, box-shadow .2s;
+  }
+  .swatch:hover {
+    transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 5;
+  }
+  .swatch-tooltip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    background: var(--near-black); color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 11px; white-space: nowrap;
+    pointer-events: none; opacity: 0; transition: opacity .2s;
+    z-index: 10; text-align: center; line-height: 1.5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .swatch-tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: var(--near-black);
+  }
+  .swatch:hover .swatch-tooltip { opacity: 1; }
+  .swatch-tooltip .tt-hex { font-weight: 700; font-family: var(--font-body); letter-spacing: 0.02em; }
+  .swatch-tooltip .tt-token { opacity: 0.7; font-size: 10px; display: block; }
+
+  /* ── Slide: Stakeholder Buy-In ── */
+  .slide-buyin { background: var(--cream); }
+  .slide-buyin .slide-inner { max-width: 1000px; }
+  .slide-buyin h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 40px; line-height: 1.12;
+  }
+  .buyin-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .buyin-card {
+    background: var(--white); border-radius: 14px; padding: 28px 24px;
+    border: 1px solid rgba(19,54,42,0.06);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+  .buyin-card .buyin-icon {
+    font-family: 'Material Symbols Outlined'; font-size: 28px;
+    color: var(--sage); margin-bottom: 14px; display: block;
+    font-weight: normal; font-style: normal; line-height: 1;
+  }
+  .buyin-card h3 { font-size: 16px; font-weight: 600; color: var(--dark-green); margin-bottom: 8px; }
+  .buyin-card p { font-size: 14px; color: var(--near-black); opacity: 0.75; line-height: 1.6; }
+  .buyin-card .buyin-quote {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(19,54,42,0.06);
+    font-size: 13px; font-style: italic; color: var(--sage); line-height: 1.5;
+  }
+
+  /* ── Slide: Component Showcase ── */
+  .slide-showcase { background: var(--white); }
+  .slide-showcase h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 40px; text-align: center;
+  }
+  .showcase-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+    max-width: 960px; margin: 0 auto;
+  }
+  .showcase-item {
+    background: var(--cream); border-radius: 12px; padding: 24px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    border: 1px solid rgba(19,54,42,0.04);
+  }
+  .showcase-item .sc-label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--near-black); opacity: 0.55; font-weight: 600;
+  }
+  .showcase-item .sc-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+  /* Mini component previews */
+  .sc-btn {
+    padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    border: none; cursor: default; font-family: var(--font-body);
+  }
+  .sc-btn.primary { background: #1FAC76; color: var(--white); }
+  .sc-btn.secondary { background: transparent; color: #1FAC76; border: 1.5px solid #1FAC76; }
+  .sc-btn.ghost { background: transparent; color: #1FAC76; border: none; }
+  .sc-input {
+    width: 100%; padding: 8px 12px; border-radius: 6px; font-size: 12px;
+    border: 1.5px solid #D1D5D3; background: var(--white); color: var(--near-black);
+    font-family: var(--font-body);
+  }
+  .sc-input::placeholder { color: #9BA3A8; }
+  .sc-toggle { position: relative; width: 36px; height: 20px; border-radius: 10px; background: #1FAC76; }
+  .sc-toggle::after {
+    content: ''; position: absolute; top: 2px; left: 18px;
+    width: 16px; height: 16px; border-radius: 50%; background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .sc-toggle.off { background: #D1D5D3; }
+  .sc-toggle.off::after { left: 2px; }
+  .sc-badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; font-family: var(--font-body);
+  }
+  .sc-badge .badge-icon { font-size: 14px; line-height: 1; }
+  .sc-badge .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sc-badge.success { background: #DFF5E8; color: #1FAC76; }
+  .sc-badge.warning { background: #FEF0E0; color: #C98420; }
+  .sc-badge.error { background: #FEECEC; color: #E04545; }
+  .sc-badge.info { background: #EBF0FF; color: #4B6BF5; }
+  .sc-badge.neutral { background: #EEF0F2; color: #6B7280; }
+  .sc-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--sage);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: white; font-family: var(--font-body);
+  }
+  .sc-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 12px; border-radius: 20px; font-size: 11px;
+    background: var(--light-green); color: var(--dark-green); font-weight: 500;
+  }
+  .sc-alert {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    font-size: 11px; line-height: 1.4; text-align: left;
+    background: #DBEAFE; color: #1E3A5F; border-left: 3px solid #2563EB;
+  }
+  .sc-tab-row { display: flex; gap: 0; width: 100%; }
+  .sc-tab {
+    flex: 1; padding: 8px 0; font-size: 11px; text-align: center;
+    font-weight: 500; color: var(--near-black); opacity: 0.4;
+    border-bottom: 2px solid transparent; font-family: var(--font-body);
+  }
+  .sc-tab.active { opacity: 1; color: var(--dark-green); border-bottom-color: var(--sage); }
+
+  /* ── Slide: Component Governance Flow ── */
+  .slide-governance { background: var(--cream); }
+  .slide-governance.active { overflow-y: auto; align-items: flex-start; }
+  .flow-chart {
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+    position: relative; width: 100%; max-width: 920px; margin: 0 auto;
+  }
+  .flow-row {
+    display: flex; align-items: center; gap: 0; position: relative; width: 100%;
+    justify-content: center;
+  }
+  .flow-connector {
+    width: 2px; height: 20px; background: var(--sage); margin: 0 auto;
+  }
+  .flow-node {
+    padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    font-family: var(--font-body); text-align: center; white-space: nowrap;
+    position: relative; line-height: 1.3;
+  }
+  .flow-start {
+    background: var(--dark-green); color: var(--white); border-radius: 20px;
+    padding: 8px 22px; font-size: 12px;
+  }
+  .flow-decision {
+    background: var(--white); color: var(--near-black); border: 1.5px solid var(--sage);
+    border-radius: 8px; padding: 7px 14px; font-weight: 500; font-size: 11px;
+  }
+  .flow-action {
+    border-radius: 6px; padding: 6px 12px; font-size: 10px; font-weight: 600;
+    color: var(--white); min-width: 100px; line-height: 1.35;
+  }
+  .flow-action.green { background: #1FAC76; }
+  .flow-action.blue { background: #3B6EDB; }
+  .flow-action.orange { background: #D97706; }
+  .flow-action.sage { background: var(--sage); }
+  .flow-action.dark { background: var(--dark-green); }
+  .flow-yes, .flow-no {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 1px 6px; border-radius: 3px; flex-shrink: 0;
+  }
+  .flow-yes { color: #1FAC76; background: rgba(31,172,118,0.1); }
+  .flow-no { color: #9BA3A8; background: rgba(155,163,168,0.1); }
+  .flow-arrow { color: var(--sage); font-size: 12px; flex-shrink: 0; margin: 0 3px; }
+  .flow-then { color: var(--sage); font-size: 10px; flex-shrink: 0; margin: 0 3px; font-style: italic; }
+  .flow-gates {
+    display: flex; gap: 12px; margin-top: 16px; padding-top: 16px;
+    border-top: 1.5px dashed var(--sage); width: 100%; justify-content: center;
+  }
+  .flow-gate {
+    display: flex; align-items: center; gap: 6px; background: var(--white);
+    border: 1.5px solid var(--sage); border-radius: 8px; padding: 8px 14px;
+    font-size: 10px; font-weight: 600; color: var(--near-black); font-family: var(--font-body);
+  }
+  .flow-gate .material-symbols-outlined { font-size: 16px; color: var(--sage); }
+
+  /* ── Slide: My Role ── */
+  .slide-role { background: var(--cream); }
+  .role-layout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 40px;
+    max-width: 880px; margin: 0 auto; align-items: start;
+  }
+  .role-scope {
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .role-stat {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .role-stat .rs-num {
+    font-family: var(--font-display); font-size: 36px; font-weight: 700;
+    color: var(--dark-green); line-height: 1; min-width: 52px; text-align: right;
+    flex-shrink: 0;
+  }
+  .role-stat .rs-label {
+    font-size: 14px; color: var(--near-black); opacity: 0.7; line-height: 1.4;
+  }
+  .role-responsibilities {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .role-resp-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 14px; color: var(--near-black); line-height: 1.6; opacity: 0.85;
+  }
+  .role-resp-item .material-symbols-outlined {
+    font-size: 24px; color: var(--sage); flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Slide: Team Growth ── */
+  .slide-teamgrowth { background: var(--cream); }
+  .growth-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    max-width: 900px; margin: 0 auto;
+  }
+  .growth-card {
+    background: var(--white); border-radius: 12px; padding: 28px 24px;
+    border: 1px solid rgba(19,54,42,0.06);
+  }
+  .growth-card .gc-icon {
+    font-size: 28px; color: var(--sage); margin-bottom: 14px;
+  }
+  .growth-card h3 {
+    font-family: var(--font-display); font-size: 16px; color: var(--dark-green);
+    margin-bottom: 10px;
+  }
+  .growth-card p {
+    font-size: 13px; color: var(--near-black); opacity: 0.75; line-height: 1.65;
+  }
+
+  /* ── Slide: Hard Calls ── */
+  .slide-hardcalls { background: var(--dark-green); }
+  .hardcalls-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    max-width: 880px; margin: 0 auto;
+  }
+  .hc-card {
+    background: rgba(255,255,255,0.06); border-radius: 12px; padding: 28px 24px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .hc-card .hc-label {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 700; margin-bottom: 10px; padding: 3px 10px;
+    border-radius: 4px; display: inline-block;
+  }
+  .hc-card .hc-label.tradeoff { color: var(--orange); background: rgba(255,140,66,0.12); }
+  .hc-card .hc-label.failure { color: #FF6B6B; background: rgba(255,107,107,0.12); }
+  .hc-card .hc-label.redo { color: #7CB3FF; background: rgba(124,179,255,0.12); }
+  .hc-card h3 {
+    font-family: var(--font-display); font-size: 16px; color: var(--white);
+    margin-bottom: 10px;
+  }
+  .hc-card p {
+    font-size: 13px; color: var(--off-white); opacity: 0.8; line-height: 1.65;
+  }
+
+  /* ── Slide: What's Next ── */
+  .slide-whatsnext { background: var(--cream); }
+  .next-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    max-width: 940px; margin: 0 auto;
+  }
+  .next-card {
+    background: var(--white); border-radius: 12px; padding: 24px 20px;
+    border: 1px solid rgba(19,54,42,0.06); display: flex; flex-direction: column; gap: 12px;
+  }
+  .next-card .next-horizon {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 700; padding: 3px 10px; border-radius: 4px;
+    display: inline-block; align-self: flex-start;
+  }
+  .next-card .next-horizon.now { color: #1FAC76; background: rgba(31,172,118,0.1); }
+  .next-card .next-horizon.soon { color: #3B6EDB; background: rgba(59,110,219,0.1); }
+  .next-card .next-horizon.later { color: var(--sage); background: rgba(106,161,133,0.12); }
+  .next-card .next-icon {
+    font-size: 28px; color: var(--sage);
+  }
+  .next-card h3 {
+    font-family: var(--font-display); font-size: 15px; color: var(--dark-green);
+    line-height: 1.3;
+  }
+  .next-card p {
+    font-size: 12px; color: var(--near-black); opacity: 0.7; line-height: 1.6;
+  }
+
+  /* ── Slide: Component Fragmentation ── */
+  .slide-fragmentation { background: var(--cream); }
+  .frag-layout {
+    display: grid; grid-template-columns: auto 1fr; gap: 40px;
+    max-width: 920px; margin: 0 auto; align-items: center;
+  }
+  .frag-img-wrap {
+    background: var(--white); border-radius: 12px; padding: 12px;
+    border: 1px solid rgba(19,54,42,0.08); box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    max-width: 300px;
+  }
+  .frag-img-wrap img {
+    width: 100%; height: auto; border-radius: 6px; display: block;
+  }
+  .frag-content { display: flex; flex-direction: column; gap: 20px; }
+  .frag-content h3 {
+    font-family: var(--font-display); font-size: 22px; color: var(--dark-green);
+    line-height: 1.3;
+  }
+  .frag-content p {
+    font-size: 14px; color: var(--near-black); opacity: 0.8; line-height: 1.7;
+  }
+  .frag-callout {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 16px 20px; background: rgba(19,54,42,0.04); border-radius: 10px;
+    border-left: 3px solid var(--orange);
+  }
+  .frag-callout .fc-num {
+    font-family: var(--font-display); font-size: 32px; font-weight: 700;
+    color: var(--orange); line-height: 1;
+  }
+  .frag-callout .fc-text {
+    font-size: 13px; color: var(--near-black); opacity: 0.75; line-height: 1.5;
+  }
+  .frag-names {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .frag-names code {
+    font-size: 11px; padding: 3px 8px; border-radius: 4px;
+    background: rgba(19,54,42,0.06); color: var(--dark-green);
+    font-family: 'SF Mono', 'Fira Code', monospace; font-weight: 500;
+  }
+
+  /* ── Slide: Before / After ── */
+  .slide-beforeafter { background: var(--dark-green); }
+  .slide-beforeafter h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--white); margin-bottom: 48px; text-align: center;
+  }
+  .ba-comparison {
+    display: grid; grid-template-columns: 1fr 60px 1fr; gap: 0; align-items: center;
+    max-width: 900px; margin: 0 auto;
+  }
+  .ba-side {
+    background: rgba(255,255,255,0.04); border-radius: 16px; padding: 32px 28px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .ba-side h3 {
+    font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase;
+    font-weight: 600; margin-bottom: 24px;
+  }
+  .ba-side.before h3 { color: var(--white); opacity: 0.8; }
+  .ba-side.after h3 { color: var(--white); }
+  .ba-side ul { list-style: none; display: flex; flex-direction: column; gap: 14px; padding: 0; margin: 0; }
+  .ba-side ul li {
+    font-size: 14px; color: var(--off-white); opacity: 0.85; line-height: 1.6;
+    padding-left: 24px; position: relative;
+  }
+  .ba-side.before ul li::before {
+    content: ''; position: absolute; left: 0; top: 8px;
+    width: 10px; height: 10px; border-radius: 50%; background: #FF6B6B;
+  }
+  .ba-side.after ul li::before {
+    content: ''; position: absolute; left: 0; top: 8px;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--sage);
+  }
+  .ba-arrow {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: var(--sage); opacity: 0.6;
+  }
+
+  /* ── Slide: Lessons Learned ── */
+  .slide-lessons { background: var(--cream); }
+  .slide-lessons h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--dark-green); margin-bottom: 40px;
+  }
+  .lessons-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .lesson-card {
+    background: var(--white); border-radius: 14px; padding: 28px 24px;
+    border: 1px solid rgba(19,54,42,0.06);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+  .lesson-card .lesson-num {
+    font-size: 32px; font-weight: 700; color: var(--sage); opacity: 0.3;
+    line-height: 1; margin-bottom: 12px; font-family: var(--font-display);
+  }
+  .lesson-card h3 { font-size: 16px; font-weight: 600; color: var(--dark-green); margin-bottom: 8px; }
+  .lesson-card p { font-size: 14px; color: var(--near-black); opacity: 0.75; line-height: 1.6; }
+
+  /* ── Slide: Before & After Showcase ── */
+  .slide-showcase-ba { background: var(--cream); }
+  .showcase-ba-layout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+    max-width: 940px; margin: 0 auto;
+  }
+  .showcase-ba-col { display: flex; flex-direction: column; gap: 10px; }
+  .showcase-ba-col h3 {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 700; padding: 4px 12px; border-radius: 4px; display: inline-block;
+    align-self: flex-start;
+  }
+  .showcase-ba-col.before h3 { color: #9BA3A0; background: rgba(155,163,160,0.12); }
+  .showcase-ba-col.after h3 { color: #1FAC76; background: rgba(31,172,118,0.1); }
+  .showcase-ba-placeholder {
+    width: 100%; aspect-ratio: 4/3; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+    font-size: 12px; font-weight: 500; color: var(--near-black); opacity: 0.4;
+    border: 2px dashed rgba(19,54,42,0.15); background: var(--white);
+  }
+  .showcase-ba-placeholder .material-symbols-outlined { font-size: 32px; opacity: 0.5; }
+  .showcase-ba-col img {
+    width: 100%; height: auto; display: block; border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10); border: 1px solid rgba(0,0,0,0.06);
+  }
+  .showcase-ba-layout { align-items: start; }
+  .showcase-ba-col .img-match-wrap {
+    display: flex; align-items: flex-start;
+  }
+  .showcase-ba-col .img-match-wrap img {
+    width: 100%; height: auto;
+  }
+  .showcase-ba-card {
+    background: var(--white); border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(19,54,42,0.08);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .showcase-ba-card-header {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 700; padding: 10px 16px;
+  }
+  .showcase-ba-card-header.before { color: #9BA3A0; background: rgba(155,163,160,0.08); }
+  .showcase-ba-card-header.after { color: #1FAC76; background: rgba(31,172,118,0.06); }
+  .showcase-ba-card-body { padding: 12px; }
+  .showcase-ba-card-body img {
+    width: 100%; height: auto; display: block; border-radius: 6px;
+  }
+
+  /* ── Lightbox ── */
+  #lightbox {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.85); cursor: zoom-out;
+    align-items: center; justify-content: center; padding: 40px;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox-img {
+    max-width: 95vw; max-height: 95vh; object-fit: contain;
+    border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  }
+  .zoomable { cursor: zoom-in; }
+
+  /* ── Org chart cascading entrance ── */
+  .org-anim {
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .slide.active .org-anim.show { opacity: 1; transform: translateY(0); }
+  .slide.active .org-anim[data-org="team-l-label"].show,
+  .slide.active .org-anim[data-org="team-r-label"].show { opacity: 0.5; }
+  .org-line-v {
+    transform-origin: top center; transform: scaleY(0);
+    transition: transform 0.4s ease;
+  }
+  .slide.active .org-line-v.show { transform: scaleY(1); }
+  .org-line-h {
+    transform-origin: center center; transform: scaleX(0);
+    transition: transform 0.4s ease;
+  }
+  .slide.active .org-line-h.show { transform: scaleX(1); }
+  .org-line-drop-l {
+    transform-origin: top center; transform: scaleY(0);
+    transition: transform 0.3s ease;
+  }
+  .slide.active .org-line-drop-l.show { transform: scaleY(1); }
+  .org-line-drop-r {
+    transform-origin: top center; transform: scaleY(0);
+    transition: transform 0.3s ease;
+  }
+  .slide.active .org-line-drop-r.show { transform: scaleY(1); }
+  .org-line-down {
+    transform-origin: top center; transform: scaleY(0);
+    transition: transform 0.3s ease;
+  }
+  .slide.active .org-line-down.show { transform: scaleY(1); }
+  .team-bubble {
+    opacity: 0; transform: scale(0.5);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .slide.active .team-bubble.show { opacity: 1; transform: scale(1); }
+
+  /* ── Slide 8: Thank You ── */
+  .slide-thanks { background: var(--dark-green); text-align: center; }
+  .slide-thanks .slide-inner { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .slide-thanks h2 {
+    font-family: var(--font-display); font-size: clamp(48px, 7vw, 96px);
+    color: var(--white); line-height: 1; font-style: italic;
+  }
+  .slide-thanks .divider-line {
+    width: 48px; height: 2px; background: var(--orange); border-radius: 1px;
+  }
+  .slide-thanks p {
+    font-size: 18px; color: var(--off-white); opacity: 0.8; max-width: 400px; line-height: 1.7;
+  }
+  .slide-thanks .contact-row {
+    margin-top: 24px; display: flex; gap: 32px;
+  }
+  .slide-thanks .contact-item {
+    font-size: 14px; color: var(--sage); opacity: 0.7;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .slide-thanks .contact-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(106,161,133,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  /* ── Slide: Team Impact (animated multi-stage) ── */
+  .slide-teamimpact { background: var(--dark-green); overflow: hidden; }
+  .slide-teamimpact .slide-inner { max-width: 1100px; position: relative; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+  .slide-teamimpact .stage-label {
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; margin-bottom: 12px; text-align: center;
+  }
+  .slide-teamimpact h2 {
+    font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px);
+    color: var(--white); text-align: center; margin-bottom: 40px;
+    transition: opacity .6s, transform .6s;
+  }
+  .stage-indicator {
+    display: flex; gap: 8px; justify-content: center; margin-bottom: 24px;
+  }
+  .stage-pip {
+    width: 32px; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.15); transition: background .4s;
+  }
+  .stage-pip.active { background: var(--orange); }
+
+  /* --- Stage container --- */
+  .stage-container { position: relative; width: 100%; min-height: 420px; }
+  .stage-view {
+    position: absolute; inset: 0;
+    opacity: 0; pointer-events: none;
+    transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1);
+    transform: translateY(20px);
+  }
+  .stage-view.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  /* --- Stage 1: Team Ecosystem --- */
+  .ecosystem { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+  .eco-hub {
+    position: relative; width: 460px; height: 380px;
+  }
+  .eco-center {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 100px; height: 100px; border-radius: 50%;
+    background: var(--dark-green); border: 2px solid var(--sage);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 2;
+  }
+  .eco-ripple-container {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 0; height: 0; z-index: 1; pointer-events: none;
+  }
+  .eco-ripple {
+    position: absolute; left: 50%; top: 50%;
+    width: 100px; height: 100px;
+    margin-left: -50px; margin-top: -50px;
+    border-radius: 50%;
+    border: none;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow:
+      0 0 0 0 rgba(106,161,133,0.0),
+      inset 0 0 0 0 rgba(106,161,133,0.0);
+  }
+  .eco-ripple-container.rippling .eco-ripple {
+    animation: waterRipple 4.5s ease-out infinite;
+  }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(1) { animation-delay: 0s; }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(2) { animation-delay: 0.9s; }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(3) { animation-delay: 1.8s; }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(4) { animation-delay: 2.7s; }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(5) { animation-delay: 3.6s; }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(6) { animation-delay: 4.5s; }
+  .eco-ripple-container.rippling .eco-ripple:nth-child(7) { animation-delay: 5.4s; }
+  .eco-ripple-container:not(.rippling) .eco-ripple { animation: none; opacity: 0; }
+  .eco-center { cursor: pointer; transition: transform 0.15s ease; }
+  .eco-center:active { transform: translate(-50%, -50%) scale(0.95); }
+  @keyframes waterRipple {
+    0% {
+      width: 100px; height: 100px;
+      margin-left: -50px; margin-top: -50px;
+      opacity: 0;
+      border: 2px solid rgba(106,161,133,0.6);
+      box-shadow: 0 0 4px 1px rgba(106,161,133,0.15);
+    }
+    5% {
+      opacity: 0.7;
+      border: 2px solid rgba(106,161,133,0.55);
+    }
+    20% {
+      opacity: 0.5;
+      border: 1.5px solid rgba(106,161,133,0.4);
+      box-shadow: 0 0 8px 2px rgba(106,161,133,0.1);
+    }
+    50% {
+      opacity: 0.25;
+      border: 1px solid rgba(106,161,133,0.25);
+      box-shadow: 0 0 12px 3px rgba(106,161,133,0.05);
+    }
+    100% {
+      width: 1200px; height: 1200px;
+      margin-left: -600px; margin-top: -600px;
+      opacity: 0;
+      border: 0.5px solid rgba(106,161,133,0.0);
+      box-shadow: 0 0 20px 4px rgba(106,161,133,0.0);
+    }
+  }
+  .eco-center .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 32px; color: var(--sage); font-weight: normal; font-style: normal; }
+  .eco-center span:last-child { font-size: 10px; color: var(--sage); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; font-weight: 600; }
+  .eco-node {
+    position: absolute; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    z-index: 2;
+    transition: all .8s cubic-bezier(.22,1,.36,1);
+  }
+  .eco-node .node-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: var(--dark-green); border: 1px solid rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Material Symbols Outlined'; font-size: 24px; color: var(--white);
+    font-weight: normal; font-style: normal;
+    transition: all .5s;
+  }
+  .eco-node .node-label { font-size: 11px; color: var(--off-white); opacity: 0.85; text-align: center; white-space: nowrap; }
+  .eco-lines-svg {
+    position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+  }
+  .eco-lines-svg line {
+    stroke: rgba(106,161,133,0.5); stroke-width: 1.5;
+    stroke-dasharray: 200; stroke-dashoffset: 200;
+  }
+  .stage-view.active .eco-lines-svg line {
+    animation: drawLine 0.8s cubic-bezier(.22,1,.36,1) forwards;
+  }
+  .stage-view.active .eco-lines-svg line:nth-child(1) { animation-delay: 0.3s; }
+  .stage-view.active .eco-lines-svg line:nth-child(2) { animation-delay: 0.45s; }
+  .stage-view.active .eco-lines-svg line:nth-child(3) { animation-delay: 0.6s; }
+  .stage-view.active .eco-lines-svg line:nth-child(4) { animation-delay: 0.75s; }
+  .stage-view.active .eco-lines-svg line:nth-child(5) { animation-delay: 0.9s; }
+  .stage-view.active .eco-lines-svg line:nth-child(6) { animation-delay: 1.05s; }
+  .stage-view:not(.active) .eco-lines-svg line { animation: none; stroke-dashoffset: 200; }
+  @keyframes drawLine {
+    to { stroke-dashoffset: 0; }
+  }
+  .eco-node:hover .node-icon { background: rgba(106,161,133,0.15); border-color: var(--sage); }
+  .eco-impact {
+    margin-top: 20px; text-align: center; font-size: 13px; color: var(--off-white); opacity: 0.8;
+    font-style: italic;
+  }
+
+  /* --- Stage 2: Gantt Chart --- */
+  .gantt { width: 100%; }
+  .gantt-year-row {
+    display: grid; grid-template-columns: 140px 1fr 1fr;
+    gap: 0; margin-bottom: 0;
+  }
+  .gantt-year-row span {
+    font-size: 13px; font-weight: 700; color: var(--white);
+    text-align: center; padding: 8px 0;
+    border-bottom: 2px solid rgba(255,255,255,0.08);
+  }
+  .gantt-year-row span:first-child { border-bottom: none; }
+  .gantt-header {
+    display: grid; grid-template-columns: 140px repeat(8, 1fr);
+    gap: 0; margin-bottom: 8px;
+  }
+  .gantt-header span {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; text-align: center; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .gantt-header span:first-child { text-align: left; border-bottom: none; }
+  .gantt-row {
+    display: grid; grid-template-columns: 140px repeat(8, 1fr);
+    gap: 0 4px; align-items: center; padding: 5px 0;
+    min-height: 34px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .gantt-team {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--white); font-weight: 500;
+  }
+  .gantt-team .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--sage); font-weight: normal; font-style: normal; }
+  .gantt-bar {
+    height: 22px; border-radius: 5px; position: relative;
+    align-self: center;
+    animation: ganttSlide .9s cubic-bezier(.22,1,.36,1) both;
+  }
+  .gantt-bar.audit    { background: rgba(240,106,31,0.6); }
+  .gantt-bar.tokens   { background: rgba(106,161,133,0.5); }
+  .gantt-bar.core     { background: rgba(106,161,133,0.7); }
+  .gantt-bar.patterns { background: rgba(100,150,255,0.5); }
+  .gantt-bar.migrate  { background: rgba(180,130,255,0.5); }
+  .gantt-bar.docs     { background: rgba(255,200,100,0.5); }
+  .gantt-bar-label {
+    position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+    font-size: 9px; color: var(--white); font-weight: 600; white-space: nowrap;
+  }
+  @keyframes ganttSlide {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
+  }
+  /* Stagger the bar animations per row */
+  .gantt-row:nth-child(2) .gantt-bar { animation-delay: 0s; }
+  .gantt-row:nth-child(3) .gantt-bar { animation-delay: 0.12s; }
+  .gantt-row:nth-child(4) .gantt-bar { animation-delay: 0.24s; }
+  .gantt-row:nth-child(5) .gantt-bar { animation-delay: 0.36s; }
+  .gantt-row:nth-child(6) .gantt-bar { animation-delay: 0.48s; }
+  .gantt-row:nth-child(7) .gantt-bar { animation-delay: 0.6s; }
+  /* Pause animations until stage is active, then replay */
+  .stage-view:not(.active) .gantt-bar { animation: none; }
+  .gantt-legend {
+    display: flex; gap: 16px; justify-content: center; margin-top: 16px; flex-wrap: wrap;
+  }
+  .gantt-legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--off-white); opacity: 0.85;
+  }
+  .gantt-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* --- Stage 3: Roadmap --- */
+  .roadmap { width: 100%; }
+  .roadmap-timeline {
+    position: relative; padding-left: 40px;
+    border-left: 2px solid rgba(106,161,133,0.2); margin-left: 20px;
+  }
+  .roadmap-phase {
+    position: relative; margin-bottom: 36px; padding-left: 24px;
+  }
+  .roadmap-phase:last-child { margin-bottom: 0; }
+  .roadmap-dot {
+    position: absolute; left: -49px; top: 4px;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 3px solid var(--sage); background: var(--dark-green);
+  }
+  .roadmap-phase.complete .roadmap-dot { background: var(--sage); }
+  .roadmap-phase.current .roadmap-dot {
+    background: var(--orange); border-color: var(--orange);
+    box-shadow: 0 0 0 4px rgba(240,106,31,0.2);
+  }
+  .roadmap-quarter {
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--sage); font-weight: 600; margin-bottom: 6px;
+  }
+  .roadmap-title { font-size: 18px; font-weight: 600; color: var(--white); margin-bottom: 4px; }
+  .roadmap-desc { font-size: 13px; color: var(--off-white); opacity: 0.8; line-height: 1.5; }
+  .roadmap-tags { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .roadmap-tag {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 20px; font-weight: 600;
+    background: rgba(255,255,255,0.06); color: var(--off-white);
+  }
+  .roadmap-tag.done { background: rgba(106,161,133,0.15); color: var(--sage); }
+  .roadmap-tag.active { background: rgba(240,106,31,0.15); color: var(--orange); }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 900px) {
+    .slide { padding: 48px 24px; }
+    .slide-audit .slide-inner { grid-template-columns: 1fr; gap: 40px; }
+    .findings-cards { grid-template-columns: 1fr; }
+    .public-risks { grid-template-columns: 1fr; gap: 16px; }
+    .principles-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .typo-columns { grid-template-columns: 1fr; gap: 40px; }
+    .slide-type .slide-inner { grid-template-columns: 1fr; gap: 40px; }
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .before-after { grid-template-columns: 1fr; gap: 20px; }
+    .ba-divider { width: 120px; height: 2px; margin: 0 auto; }
+    .arch-arrow-col { display: none; }
+    .buyin-grid { grid-template-columns: 1fr; }
+    .showcase-grid { grid-template-columns: repeat(2, 1fr); }
+    .ba-comparison { grid-template-columns: 1fr; gap: 20px; }
+    .ba-arrow { transform: rotate(90deg); }
+    .lessons-grid { grid-template-columns: 1fr; }
+    .role-layout { grid-template-columns: 1fr; gap: 24px; }
+    .growth-grid { grid-template-columns: 1fr; }
+    .hardcalls-grid { grid-template-columns: 1fr; }
+    .frag-layout { grid-template-columns: 1fr; }
+    .frag-img-wrap { max-width: 240px; margin: 0 auto; }
+    .ui-callout.callout-nav,
+    .ui-callout.callout-btns,
+    .ui-callout.callout-orange { position: static; margin-bottom: 8px; }
+    .old-ui-wrap { display: flex; flex-direction: column; gap: 8px; }
+  }
+  @media (max-width: 560px) {
+    .principles-grid { grid-template-columns: 1fr; }
+    .typo-columns { grid-template-columns: 1fr; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .slide-thanks .contact-row { flex-direction: column; gap: 16px; }
+    .public-risks { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div id="progress" style="width: 10%"></div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- Math Background -->
+<div id="math-bg"></div>
+
+<!-- Arrow Buttons -->
+<button class="arrow-btn left" onclick="go(-1)" aria-label="Previous slide">&#8592;</button>
+<button class="arrow-btn right" onclick="go(1)" aria-label="Next slide">&#8594;</button>
+
+<!-- Deck -->
+<div id="deck">
+
+  <!-- SLIDE 1 — Title -->
+  <div class="slide slide-title active" data-bg="dark">
+    <div class="slide-inner">
+      <div class="eyebrow">FloQast Design System</div>
+      <div class="divider-line"></div>
+      <h1>Evolving the <em>Design System</em></h1>
+      <p class="subtitle">The FloQast Platform Design Story — from fragmented UI to a unified, scalable design language.</p>
+      <div class="presenter">
+        <span>Randy Ritprasert &middot; Product Design Leader</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — My Role -->
+  <div class="slide slide-role" data-bg="light">
+    <div class="slide-inner" style="max-width:920px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:16px;opacity:0.7;">01 &mdash; My Role</div>
+      <h2 style="margin-bottom:32px;">What I Owned</h2>
+      <div class="role-layout">
+        <div class="role-scope">
+          <div class="role-stat">
+            <div class="rs-num">1</div>
+            <div class="rs-label">Product Designer leading the platform design system end-to-end</div>
+          </div>
+          <div class="role-stat">
+            <div class="rs-num">6</div>
+            <div class="rs-label">Supporting design systems designers</div>
+          </div>
+          <div class="role-stat">
+            <div class="rs-num">8</div>
+            <div class="rs-label">Product teams influenced across the organization</div>
+          </div>
+          <div class="role-stat">
+            <div class="rs-num">40<span style="font-size:20px;">+</span></div>
+            <div class="rs-label">Components designed, documented, and shipped</div>
+          </div>
+        </div>
+        <div class="role-responsibilities">
+          <div class="role-resp-item">
+            <span class="material-symbols-outlined">architecture</span>
+            <span>Defined design system strategy, component APIs, and token architecture</span>
+          </div>
+          <div class="role-resp-item">
+            <span class="material-symbols-outlined">handshake</span>
+            <span>Built cross-functional partnerships with engineering and secured leadership buy-in</span>
+          </div>
+          <div class="role-resp-item">
+            <span class="material-symbols-outlined">checklist</span>
+            <span>Established governance, contribution workflows, and quality gates</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Org Structure -->
+  <div class="slide" data-bg="light" style="background:var(--cream);">
+    <div class="slide-inner" style="max-width:900px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:16px;opacity:0.7;text-align:center;">01b &mdash; Team Structure</div>
+      <h2 style="text-align:center;margin-bottom:40px;">How We Were Organized</h2>
+
+      <div class="org-chart-container" style="display:flex;flex-direction:column;align-items:center;gap:0;">
+
+        <!-- CTO -->
+        <div class="org-anim" data-org="cto" style="display:flex;flex-direction:column;align-items:center;">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--dark-green);display:flex;align-items:center;justify-content:center;">
+            <span class="material-symbols-outlined" style="color:var(--white);font-size:26px;">shield_person</span>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--dark-green);margin-top:8px;">CTO</div>
+          <div style="font-size:11px;color:var(--near-black);opacity:0.5;">Executive Sponsor</div>
+        </div>
+
+        <!-- Connector down splitting into two -->
+        <div class="org-line-v" data-org="line1" style="width:2px;height:24px;background:var(--sage);margin:0 auto;"></div>
+        <div style="position:relative;width:460px;height:26px;">
+          <div class="org-line-h" data-org="line-h" style="position:absolute;top:0;left:90px;right:90px;height:2px;background:var(--sage);"></div>
+          <div class="org-line-drop-l" data-org="drop-l" style="position:absolute;top:0;left:89px;width:2px;height:26px;background:var(--sage);"></div>
+          <div class="org-line-drop-r" data-org="drop-r" style="position:absolute;top:0;right:89px;width:2px;height:26px;background:var(--sage);"></div>
+        </div>
+
+        <!-- Two branches: Me + Platform Eng -->
+        <div style="display:flex;gap:0;width:460px;justify-content:space-between;align-items:flex-start;">
+
+          <!-- Left branch: Me -->
+          <div style="display:flex;flex-direction:column;align-items:center;width:180px;">
+            <div class="org-anim" data-org="randy" style="display:flex;flex-direction:column;align-items:center;">
+              <div style="width:56px;height:56px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--white);font-size:26px;">person</span>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:var(--dark-green);margin-top:8px;">Randy Ritprasert</div>
+              <div style="font-size:11px;color:var(--near-black);opacity:0.5;">Product Designer, DS Lead</div>
+            </div>
+
+            <!-- Connector down -->
+            <div class="org-line-down" data-org="line-left-down" style="width:2px;height:24px;background:var(--sage);margin-top:8px;"></div>
+
+            <!-- 6 designers -->
+            <div class="bubble-group" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:200px;">
+              <div class="team-bubble" data-org="team-l" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">person</span>
+              </div>
+              <div class="team-bubble" data-org="team-l" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">person</span>
+              </div>
+              <div class="team-bubble" data-org="team-l" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">person</span>
+              </div>
+              <div class="team-bubble" data-org="team-l" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">person</span>
+              </div>
+              <div class="team-bubble" data-org="team-l" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">person</span>
+              </div>
+              <div class="team-bubble" data-org="team-l" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">person</span>
+              </div>
+            </div>
+            <div class="org-anim" data-org="team-l-label" style="font-size:11px;color:var(--near-black);margin-top:6px;">6 Design System Designers</div>
+          </div>
+
+          <!-- Right branch: Sr Director → Platform Engineering -->
+          <div style="display:flex;flex-direction:column;align-items:center;width:180px;">
+            <div class="org-anim" data-org="sr-dir" style="display:flex;flex-direction:column;align-items:center;">
+              <div style="width:48px;height:48px;border-radius:50%;background:var(--dark-green);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--white);font-size:22px;">supervisor_account</span>
+              </div>
+              <div style="font-size:13px;font-weight:700;color:var(--dark-green);margin-top:6px;">Sr. Director of Eng</div>
+              <div style="font-size:11px;color:var(--near-black);opacity:0.5;">Engineering Leadership</div>
+            </div>
+
+            <!-- Connector down -->
+            <div class="org-line-down" data-org="line-sr-to-plat" style="width:2px;height:20px;background:var(--sage);margin-top:6px;"></div>
+
+            <div class="org-anim" data-org="plat-eng" style="display:flex;flex-direction:column;align-items:center;">
+              <div style="width:56px;height:56px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--white);font-size:26px;">engineering</span>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:var(--dark-green);margin-top:8px;">Platform Engineering</div>
+              <div style="font-size:11px;color:var(--near-black);opacity:0.5;">Implementation Partner</div>
+            </div>
+
+            <!-- Connector down -->
+            <div class="org-line-down" data-org="line-plat-down" style="width:2px;height:24px;background:var(--sage);margin-top:8px;"></div>
+
+            <!-- 5 engineers -->
+            <div class="bubble-group" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:200px;">
+              <div class="team-bubble" data-org="team-r" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">code</span>
+              </div>
+              <div class="team-bubble" data-org="team-r" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">code</span>
+              </div>
+              <div class="team-bubble" data-org="team-r" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">code</span>
+              </div>
+              <div class="team-bubble" data-org="team-r" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">code</span>
+              </div>
+              <div class="team-bubble" data-org="team-r" style="width:36px;height:36px;border-radius:50%;background:rgba(106,161,133,0.15);border:1.5px solid var(--sage);display:flex;align-items:center;justify-content:center;">
+                <span class="material-symbols-outlined" style="color:var(--sage);font-size:18px;">code</span>
+              </div>
+            </div>
+            <div class="org-anim" data-org="team-r-label" style="font-size:11px;color:var(--near-black);margin-top:6px;">5 Platform Engineers</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 — The Audit -->
+  <div class="slide slide-audit" data-bg="light">
+    <div class="slide-inner">
+      <div>
+        <div class="label">02 &mdash; Context</div>
+        <h2>The Company-Wide Audit</h2>
+        <p class="lead">Before building anything new, we needed to understand what existed. We audited every customer-facing surface across FloQast's platform and marketing site.</p>
+        <div class="audit-points">
+          <div class="audit-point">Catalogued every component, color value, and typographic style in use across 8+ product surfaces</div>
+          <div class="audit-point">Ran automated and manual accessibility audits against WCAG 2.1 AA standards</div>
+          <div class="audit-point">Documented inconsistencies between marketing site, product UI, and brand guidelines</div>
+          <div class="audit-point">Identified patterns being rebuilt from scratch by every engineering team</div>
+        </div>
+      </div>
+      <div>
+        <div class="audit-screenshot">
+          <img src="screenshots/floqast_homepage.png" alt="FloQast homepage — Faster Close, Stress-Free Audits">
+        </div>
+        <p class="screenshot-caption">floqast.com (2023) — the starting point of our audit</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 — Old Product UI -->
+  <div class="slide slide-old-ui" data-bg="light">
+    <div class="slide-inner">
+      <div class="label">03 &mdash; The Product Before</div>
+      <h2>Where We Started</h2>
+      <div class="old-ui-wrap">
+        <!-- Callout 1: Navigation -->
+        <div class="ui-callout callout-nav">
+          <div class="ui-callout-num">1</div>
+          <div class="ui-callout-bubble">
+            <strong>NAVIGATION ISN'T SCALABLE</strong>
+            Six items already fill the bar. No room to add new products as FloQast expands its platform.
+          </div>
+        </div>
+        <!-- Callout 2: Action buttons -->
+        <div class="ui-callout callout-btns">
+          <div class="ui-callout-num">2</div>
+          <div class="ui-callout-bubble">
+            <strong>BUTTON OVERLOAD</strong>
+            Six action buttons stacking horizontally. As features grow, this row becomes unmanageable.
+          </div>
+        </div>
+        <!-- Callout 3: Orange text -->
+        <div class="ui-callout callout-orange">
+          <div class="ui-callout-bubble" style="text-align:right;">
+            <strong>INACCESSIBLE COLOR</strong>
+            Orange warning text (#F16A09) on white fails WCAG AA contrast. Indistinguishable for colorblind users.
+          </div>
+          <div class="ui-callout-num">3</div>
+        </div>
+
+        <img src="screenshots/old_product_ui.png" alt="FloQast Reconciliations page — previous product design">
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 — Accessibility Findings -->
+  <div class="slide slide-findings" data-bg="light">
+    <div class="slide-inner">
+      <div class="label">04 &mdash; What We Found</div>
+      <h2>The Old FloQast Homepage</h2>
+      <p class="findings-subtitle">Scroll to explore &mdash; annotated issues across contrast, consistency, and visual maturity</p>
+
+      <div class="findings-screenshot-col">
+        <img src="screenshots/floqast_old_homepage.png" alt="FloQast old homepage full page screenshot">
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Component Fragmentation -->
+  <div class="slide slide-fragmentation" data-bg="light">
+    <div class="slide-inner" style="max-width:960px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:16px;opacity:0.7;">05 &mdash; The Real Problem</div>
+      <h2 style="margin-bottom:28px;">One Component, Twelve Versions</h2>
+      <div class="frag-layout">
+        <div class="frag-img-wrap">
+          <img src="screenshots/dropdown_chaos.png" alt="Storybook search showing 12+ dropdown component variants">
+        </div>
+        <div class="frag-content">
+          <h3>Which dropdown do you use?</h3>
+          <p>A single search for "dropdown" in the codebase returned over a dozen variants &mdash; each built by a different team, at a different time, with different APIs. No naming convention, no shared contract, no single source of truth.</p>
+          <div class="frag-callout">
+            <div class="fc-num">12+</div>
+            <div class="fc-text">dropdown variants across the codebase &mdash; designers couldn't tell which was current, engineers couldn't tell which was maintained</div>
+          </div>
+          <p>Some were versioned (<code style="font-size:12px;">DropdownV2</code>, <code style="font-size:12px;">DropdownV3</code>), some were team-specific (<code style="font-size:12px;">dropdown_nav</code>), and one was literally called <code style="font-size:12px;">DROPDOWN_BACKUP</code>. Every new hire picked a different one. Every product surface looked slightly different.</p>
+          <div class="frag-names">
+            <code>dropdown_withIcon</code>
+            <code>DropdownV3</code>
+            <code>DropdownNew</code>
+            <code>Dropdown</code>
+            <code>DropdownV2</code>
+            <code>dropdown-old</code>
+            <code>dropdown_nav</code>
+            <code>DROPDOWN_BACKUP</code>
+            <code>dropdownRefactored</code>
+            <code>Dropdown_contextMenu</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 — Going Public -->
+  <div class="slide slide-public" data-bg="dark">
+    <div class="slide-inner">
+      <div class="label">06 &mdash; Why It Matters</div>
+      <h2>When a Company <em>Goes Public</em></h2>
+      <p class="public-lead">Accessibility isn't just good design — for public companies, it's a legal and financial imperative. Non-compliance creates real business risk.</p>
+      <div class="public-risks">
+        <div class="risk-card">
+          <span class="risk-icon">gavel</span>
+          <h3>Legal Exposure</h3>
+          <p>Digital accessibility lawsuits surpassed 4,000 in 2023 &mdash; a single case can cost $50K&ndash;$150K+ in settlements.</p>
+        </div>
+        <div class="risk-card">
+          <span class="risk-icon">verified_user</span>
+          <h3>SEC &amp; SOX Compliance</h3>
+          <p>Inaccessible financial workflows prevent employees with disabilities from performing control activities &mdash; creating audit findings and material weaknesses.</p>
+        </div>
+        <div class="risk-card">
+          <span class="risk-icon">monitoring</span>
+          <h3>Investor &amp; Analyst Scrutiny</h3>
+          <p>ESG reporting now includes digital accessibility metrics &mdash; non-compliance signals governance risk that impacts valuation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Stakeholder Buy-In -->
+  <div class="slide slide-buyin" data-bg="light">
+    <div class="slide-inner">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:16px;opacity:0.7;">07 &mdash; The Pitch</div>
+      <h2>Getting Buy-In</h2>
+      <div class="buyin-grid">
+        <div class="buyin-card">
+          <div class="buyin-icon">trending_up</div>
+          <h3>The Business Case</h3>
+          <p>Quantified the wasted engineering hours from teams rebuilding the same components 3&ndash;4x and showed the payback period.</p>
+        </div>
+        <div class="buyin-card">
+          <div class="buyin-icon">groups</div>
+          <h3>Engineering Partnership</h3>
+          <p>Designers and engineers co-authored every component spec from day one &mdash; shared ownership, not hand-offs.</p>
+        </div>
+        <div class="buyin-card">
+          <div class="buyin-icon">gavel</div>
+          <h3>Compliance as Leverage</h3>
+          <p>The IPO timeline made accessibility violations a legal risk &mdash; the design system was the fastest path to WCAG AA at scale.</p>
+        </div>
+        <div class="buyin-card">
+          <div class="buyin-icon">sprint</div>
+          <h3>Start Small, Ship Fast</h3>
+          <p>Pitched a 6-week pilot on one surface, measured the results, then used that data to justify the full investment.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 — Team Impact (animated, 3 sub-stages) -->
+  <div class="slide slide-teamimpact" data-bg="dark" data-substeps="4">
+    <div class="slide-inner">
+      <div class="stage-label">08 &mdash; Planning</div>
+      <div class="stage-indicator">
+        <div class="stage-pip active" data-stage="0"></div>
+        <div class="stage-pip" data-stage="1"></div>
+        <div class="stage-pip" data-stage="2"></div>
+        <div class="stage-pip" data-stage="3"></div>
+      </div>
+      <h2 id="teamimpact-title">Understanding Team Impact</h2>
+
+      <div class="stage-container">
+        <!-- STAGE 1: Team Ecosystem -->
+        <div class="stage-view active" data-stage="0">
+          <div class="ecosystem">
+            <div class="eco-hub" id="eco-hub">
+              <div class="eco-ripple-container">
+                <div class="eco-ripple"></div>
+                <div class="eco-ripple"></div>
+                <div class="eco-ripple"></div>
+                <div class="eco-ripple"></div>
+                <div class="eco-ripple"></div>
+                <div class="eco-ripple"></div>
+                <div class="eco-ripple"></div>
+              </div>
+              <div class="eco-center">
+                <span class="material-symbols-outlined">hub</span>
+                <span>Flow-UI</span>
+              </div>
+              <svg class="eco-lines-svg" id="eco-lines-svg"></svg>
+              <div class="eco-node" style="left:50%;top:-10px;transform:translateX(-50%)">
+                <div class="node-icon">code</div>
+                <div class="node-label">Engineering</div>
+              </div>
+              <div class="eco-node" style="right:-30px;top:60px">
+                <div class="node-icon">inventory_2</div>
+                <div class="node-label">Product</div>
+              </div>
+              <div class="eco-node" style="right:-30px;bottom:60px">
+                <div class="node-icon">campaign</div>
+                <div class="node-label">Marketing</div>
+              </div>
+              <div class="eco-node" style="left:50%;bottom:-10px;transform:translateX(-50%)">
+                <div class="node-icon">support_agent</div>
+                <div class="node-label">Support</div>
+              </div>
+              <div class="eco-node" style="left:-30px;bottom:60px">
+                <div class="node-icon">bug_report</div>
+                <div class="node-label">QA</div>
+              </div>
+              <div class="eco-node" style="left:-30px;top:60px">
+                <div class="node-icon">groups</div>
+                <div class="node-label">Users</div>
+              </div>
+            </div>
+            <p class="eco-impact">As a product designer, every system change ripples across every team. Understanding dependencies is step one.</p>
+          </div>
+        </div>
+
+        <!-- STAGE 2: Gantt Chart -->
+        <div class="stage-view" data-stage="1">
+          <div class="gantt">
+            <div class="gantt-year-row">
+              <span></span><span>2023</span><span>2024</span>
+            </div>
+            <div class="gantt-header">
+              <span>Phase</span><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-team"><span class="material-symbols-outlined">search</span> Audit</div>
+              <div class="gantt-bar audit" style="grid-column:2/4;width:75%"><span class="gantt-bar-label">Company-Wide Audit</span></div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-team"><span class="material-symbols-outlined">palette</span> Tokens</div>
+              <div class="gantt-bar tokens" style="grid-column:3/6"><span class="gantt-bar-label">Colors → Typography → Spacing</span></div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-team"><span class="material-symbols-outlined">widgets</span> Components</div>
+              <div class="gantt-bar core" style="grid-column:4/9"><span class="gantt-bar-label">Primitives → Patterns → Layouts</span></div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-team"><span class="material-symbols-outlined">auto_stories</span> Documentation</div>
+              <div class="gantt-bar docs" style="grid-column:3/10"><span class="gantt-bar-label">Guidelines → Storybook → Maintain</span></div>
+            </div>
+            <div class="gantt-row">
+              <div class="gantt-team"><span class="material-symbols-outlined">handshake</span> Adoption</div>
+              <div class="gantt-bar patterns" style="grid-column:6/10"><span class="gantt-bar-label">Team Onboarding → Rollout</span></div>
+            </div>
+            <div class="gantt-legend">
+              <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:rgba(240,106,31,0.6)"></div>Audit</div>
+              <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:rgba(106,161,133,0.6)"></div>Tokens</div>
+              <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:rgba(106,161,133,0.7)"></div>Components</div>
+              <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:rgba(255,200,100,0.5)"></div>Docs</div>
+              <div class="gantt-legend-item"><div class="gantt-legend-dot" style="background:rgba(100,150,255,0.5)"></div>Adoption</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STAGE 3: Roadmap -->
+        <div class="stage-view" data-stage="2">
+          <div class="roadmap">
+            <div class="roadmap-timeline">
+              <div class="roadmap-phase complete">
+                <div class="roadmap-dot"></div>
+                <div class="roadmap-quarter">Phase 1 &mdash; Quick Wins</div>
+                <div class="roadmap-title">New Teams Adopt First</div>
+                <div class="roadmap-desc">Teams that are newly formed or spinning up new products adopt Flow-UI from day one. Zero legacy debt &mdash; they start clean with the full design system, tokens, and component library.</div>
+                <div class="roadmap-tags">
+                  <span class="roadmap-tag done">Lowest Friction</span>
+                  <span class="roadmap-tag done">New Projects Only</span>
+                </div>
+              </div>
+              <div class="roadmap-phase complete">
+                <div class="roadmap-dot"></div>
+                <div class="roadmap-quarter">Phase 2 &mdash; New Features</div>
+                <div class="roadmap-title">Build Forward with Flow-UI</div>
+                <div class="roadmap-desc">Existing teams building new features or redesigning existing flows adopted Flow-UI for all new work. Legacy screens remained untouched until Phase 3 &mdash; no regressions, no disruption to active roadmaps.</div>
+                <div class="roadmap-tags">
+                  <span class="roadmap-tag done">Complete</span>
+                  <span class="roadmap-tag done">Feature-by-Feature</span>
+                </div>
+              </div>
+              <div class="roadmap-phase complete">
+                <div class="roadmap-dot"></div>
+                <div class="roadmap-quarter">Phase 3 &mdash; Full Migration</div>
+                <div class="roadmap-title">All Teams Update Components</div>
+                <div class="roadmap-desc">Remaining legacy surfaces were systematically migrated to Flow-UI. Every team updated their existing components, ensuring full platform consistency, WCAG AA compliance, and a unified experience.</div>
+                <div class="roadmap-tags">
+                  <span class="roadmap-tag done">Complete</span>
+                  <span class="roadmap-tag done">Platform-Wide</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STAGE 4: Current State Assessment -->
+        <div class="stage-view" data-stage="3">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:900px;margin:0 auto;">
+            <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:24px 20px;border:1px solid rgba(106,161,133,0.15);">
+              <span class="material-symbols-outlined" style="font-size:28px;color:var(--sage);margin-bottom:12px;display:block;">folder_open</span>
+              <h3 style="font-family:var(--font-display);font-size:16px;color:var(--white);margin-bottom:8px;">Active Projects</h3>
+              <p style="font-size:13px;color:var(--off-white);opacity:0.75;line-height:1.5;">Catalogued every in-flight initiative to find the right insertion points without disrupting delivery.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:24px 20px;border:1px solid rgba(106,161,133,0.15);">
+              <span class="material-symbols-outlined" style="font-size:28px;color:var(--sage);margin-bottom:12px;display:block;">assignment</span>
+              <h3 style="font-family:var(--font-display);font-size:16px;color:var(--white);margin-bottom:8px;">Deliverables</h3>
+              <p style="font-size:13px;color:var(--off-white);opacity:0.75;line-height:1.5;">Mapped every team's upcoming deliverables to understand dependencies and find adoption windows.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:24px 20px;border:1px solid rgba(106,161,133,0.15);">
+              <span class="material-symbols-outlined" style="font-size:28px;color:var(--sage);margin-bottom:12px;display:block;">group</span>
+              <h3 style="font-family:var(--font-display);font-size:16px;color:var(--white);margin-bottom:8px;">Team Capacity</h3>
+              <p style="font-size:13px;color:var(--off-white);opacity:0.75;line-height:1.5;">Assessed bandwidth across design and engineering to phase rollout without overloading teams.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:24px 20px;border:1px solid rgba(106,161,133,0.15);">
+              <span class="material-symbols-outlined" style="font-size:28px;color:var(--sage);margin-bottom:12px;display:block;">rocket_launch</span>
+              <h3 style="font-family:var(--font-display);font-size:16px;color:var(--white);margin-bottom:8px;">Company Initiatives</h3>
+              <p style="font-size:13px;color:var(--off-white);opacity:0.75;line-height:1.5;">Aligned with upcoming launches and strategic priorities to ensure the system supported what mattered most.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- SLIDE 6 — Principles -->
+  <div class="slide slide-principles" data-bg="dark">
+    <div class="slide-inner">
+      <div class="label">09 &mdash; Foundation</div>
+      <h2>Design Principles</h2>
+      <div class="principles-grid">
+        <div class="principle-item">
+          <div class="principle-icon">visibility</div>
+          <h3>Clarity First</h3>
+          <p>Every pixel fights for its right to exist. If it doesn't guide the user forward, it's noise &mdash; and noise gets cut.</p>
+        </div>
+        <div class="principle-item">
+          <div class="principle-icon">widgets</div>
+          <h3>Composable by Nature</h3>
+          <p>Think LEGO, not monoliths. Tiny, purposeful pieces that snap together &mdash; building everything from a simple form to an entire workflow.</p>
+        </div>
+        <div class="principle-item">
+          <div class="principle-icon">accessibility_new</div>
+          <h3>Accessible from Day Zero</h3>
+          <p>Accessibility isn't a checkbox we tick before launch. It's in the DNA of every token, every component, every interaction &mdash; baked in from the first commit.</p>
+        </div>
+        <div class="principle-item">
+          <div class="principle-icon">open_in_full</div>
+          <h3>Built to Scale</h3>
+          <p>3 engineers or 30. One product or ten. Flow-UI stretches without breaking &mdash; because a design system that can't grow is just a style guide with ambition.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 — Typography -->
+  <div class="slide slide-typography" data-bg="light">
+    <div class="slide-inner">
+      <div class="label">10 &mdash; Typography</div>
+      <h2>Typography</h2>
+      <div class="typo-columns">
+        <!-- Museo Sans Column — Headers -->
+        <div>
+          <div class="typo-col-header">Museo Sans &mdash; Headers &amp; Display</div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag" style="background:var(--orange);">Display XL</span>
+              <span class="typo-details">48px / 64px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:36px;font-weight:300;">Regular</div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:36px;font-weight:500;">Medium</div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:36px;font-weight:700;">Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag" style="background:var(--orange);">H1</span>
+              <span class="typo-details">32px / 40px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:28px;font-weight:300;">Heading H1 Regular</div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:28px;font-weight:700;">Heading H1 Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag" style="background:var(--orange);">H2</span>
+              <span class="typo-details">24px / 32px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:22px;font-weight:300;">Heading H2 Regular</div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:22px;font-weight:700;">Heading H2 Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag" style="background:var(--orange);">H3</span>
+              <span class="typo-details">20px / 28px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:18px;font-weight:500;">Heading H3 Medium</div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:18px;font-weight:700;">Heading H3 Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag" style="background:var(--off-white);color:var(--dark-green);">H4 / H5</span>
+              <span class="typo-details">18px / 16px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:16px;font-weight:500;">Heading H4 &middot; 18px Medium</div>
+            <div class="typo-sample" style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:14px;font-weight:700;">Heading H5 &middot; 16px Semibold</div>
+          </div>
+        </div>
+        <!-- Inter Column — Body -->
+        <div>
+          <div class="typo-col-header">Inter &mdash; Body &amp; UI Text</div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag">Body Base</span>
+              <span class="typo-details">16px / 26px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;line-height:1.6;">Body Base Regular &mdash; The primary text style for all product interfaces and long-form content.</div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:16px;font-weight:600;line-height:1.6;">Body Base Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag">Body Small</span>
+              <span class="typo-details">13px / 18px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:400;line-height:1.5;">Body Small Regular &mdash; Secondary content, table cells, helper text</div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;line-height:1.5;">Body Small Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag">Body XS</span>
+              <span class="typo-details">11px / 16px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:11px;font-weight:400;line-height:1.5;">Body Extra Small &mdash; Captions, metadata, timestamps</div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;line-height:1.5;">Body Extra Small Semibold</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag">Tiny</span>
+              <span class="typo-details">10px / 14px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:10px;font-weight:400;line-height:1.4;">Tiny Text &mdash; Badges, status indicators, fine print</div>
+          </div>
+          <div class="typo-specimen">
+            <div class="typo-meta">
+              <span class="typo-tag" style="background:var(--off-white);color:var(--dark-green);">Label</span>
+              <span class="typo-details">12px / 16px</span>
+            </div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:400;line-height:1.4;">Label Regular</div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500;line-height:1.4;">Label Medium</div>
+            <div class="typo-sample" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:600;line-height:1.4;text-transform:uppercase;letter-spacing:0.08em;">OVERLINE &middot; SEMIBOLD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Why Inter + Museo Sans -->
+  <div class="slide slide-fontpair" data-bg="dark">
+    <div class="slide-inner">
+      <div class="label" style="color:var(--sage);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;margin-bottom:16px;">11 &mdash; Typography Rationale</div>
+      <h2 style="font-family:var(--font-display);font-size:clamp(32px,4vw,48px);color:var(--white);margin-bottom:48px;">Why Inter + Museo Sans?</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;">
+        <div>
+          <div style="font-family:'Museo Sans','Museo Sans Rounded',sans-serif;font-size:56px;font-weight:700;color:var(--sage);line-height:1.1;margin-bottom:16px;">Museo Sans</div>
+          <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--orange);font-weight:600;margin-bottom:20px;opacity:0.9;">Headings &amp; Display</div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--sage);margin-top:2px;">psychology</span>
+              <p style="color:var(--off-white);font-size:14px;line-height:1.6;opacity:0.85;margin:0;"><strong style="color:var(--white);opacity:1;">Warm but authoritative.</strong> Museo's soft, rounded terminals give enterprise UI a human touch without sacrificing professionalism &mdash; accountants trust it, designers love it.</p>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--sage);margin-top:2px;">visibility</span>
+              <p style="color:var(--off-white);font-size:14px;line-height:1.6;opacity:0.85;margin:0;"><strong style="color:var(--white);opacity:1;">Instant hierarchy.</strong> The weight contrast between Museo headings and Inter body creates clear visual separation &mdash; users can scan dense financial data without friction.</p>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--sage);margin-top:2px;">fingerprint</span>
+              <p style="color:var(--off-white);font-size:14px;line-height:1.6;opacity:0.85;margin:0;"><strong style="color:var(--white);opacity:1;">Brand distinction.</strong> In a sea of enterprise products using the same geometric sans, Museo gives FloQast a recognizable voice without resorting to novelty.</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Inter',sans-serif;font-size:56px;font-weight:400;color:var(--sage);line-height:1.1;margin-bottom:16px;">Inter</div>
+          <div style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--orange);font-weight:600;margin-bottom:20px;opacity:0.9;">Body &amp; UI</div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--sage);margin-top:2px;">desktop_windows</span>
+              <p style="color:var(--off-white);font-size:14px;line-height:1.6;opacity:0.85;margin:0;"><strong style="color:var(--white);opacity:1;">Born for screens.</strong> Inter was designed specifically for computer interfaces. Tall x-height, open apertures, and tabular figures &mdash; perfect for data-heavy accounting workflows.</p>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--sage);margin-top:2px;">text_fields</span>
+              <p style="color:var(--off-white);font-size:14px;line-height:1.6;opacity:0.85;margin:0;"><strong style="color:var(--white);opacity:1;">Legible at any size.</strong> From 10px table cells to 16px body copy, Inter stays crisp. Disambiguation between Il1 and O0 matters when you're reading financial figures all day.</p>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--sage);margin-top:2px;">speed</span>
+              <p style="color:var(--off-white);font-size:14px;line-height:1.6;opacity:0.85;margin:0;"><strong style="color:var(--white);opacity:1;">Variable font, zero compromise.</strong> One file, infinite weights. We load a single variable font instead of 6 static files &mdash; faster pages, consistent rendering across every platform.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Color Palette -->
+  <div class="slide slide-palette" data-bg="dark">
+    <div class="slide-inner" style="max-width:1060px;">
+      <div style="color:var(--sage);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;margin-bottom:16px;">12 &mdash; Color Palette</div>
+      <h2 style="font-family:var(--font-display);font-size:clamp(32px,4vw,48px);color:var(--white);margin-bottom:12px;">Built for Clarity</h2>
+      <p style="color:var(--off-white);opacity:0.8;font-size:15px;line-height:1.6;margin-bottom:40px;max-width:600px;">Six color families, each with a 10-step scale from light to dark. Enough range for complex UIs &mdash; constrained enough to stay consistent.</p>
+      <div class="palette-grid">
+        <div class="palette-card">
+          <div class="palette-title">Neutral</div>
+          <div class="palette-use">Backgrounds, borders, text</div>
+          <div class="palette-swatches">
+            <div class="swatch" style="background:#E8EBED;" data-hex="#E8EBED" data-token="neutral-100"></div>
+            <div class="swatch" style="background:#CDD2D6;" data-hex="#CDD2D6" data-token="neutral-200"></div>
+            <div class="swatch" style="background:#9BA3A8;" data-hex="#9BA3A8" data-token="neutral-400"></div>
+            <div class="swatch" style="background:#505A62;" data-hex="#505A62" data-token="neutral-700"></div>
+            <div class="swatch" style="background:#1E272E;" data-hex="#1E272E" data-token="neutral-900"></div>
+          </div>
+        </div>
+        <div class="palette-card">
+          <div class="palette-title">Green</div>
+          <div class="palette-use">Brand, primary actions</div>
+          <div class="palette-swatches">
+            <div class="swatch" style="background:#E1EDE6;" data-hex="#E1EDE6" data-token="green-100"></div>
+            <div class="swatch" style="background:#A8D4B9;" data-hex="#A8D4B9" data-token="green-200"></div>
+            <div class="swatch" style="background:#6AA185;" data-hex="#6AA185" data-token="green-400"></div>
+            <div class="swatch" style="background:#2D7A54;" data-hex="#2D7A54" data-token="green-700"></div>
+            <div class="swatch" style="background:#13362A;" data-hex="#13362A" data-token="green-900"></div>
+          </div>
+        </div>
+        <div class="palette-card">
+          <div class="palette-title">Red</div>
+          <div class="palette-use">Errors, destructive</div>
+          <div class="palette-swatches">
+            <div class="swatch" style="background:#FDE8E8;" data-hex="#FDE8E8" data-token="red-100"></div>
+            <div class="swatch" style="background:#FCA5A5;" data-hex="#FCA5A5" data-token="red-200"></div>
+            <div class="swatch" style="background:#F87171;" data-hex="#F87171" data-token="red-400"></div>
+            <div class="swatch" style="background:#DC2626;" data-hex="#DC2626" data-token="red-700"></div>
+            <div class="swatch" style="background:#7F1D1D;" data-hex="#7F1D1D" data-token="red-900"></div>
+          </div>
+        </div>
+        <div class="palette-card">
+          <div class="palette-title">Blue</div>
+          <div class="palette-use">Info, links, focus</div>
+          <div class="palette-swatches">
+            <div class="swatch" style="background:#DBEAFE;" data-hex="#DBEAFE" data-token="blue-100"></div>
+            <div class="swatch" style="background:#93C5FD;" data-hex="#93C5FD" data-token="blue-200"></div>
+            <div class="swatch" style="background:#60A5FA;" data-hex="#60A5FA" data-token="blue-400"></div>
+            <div class="swatch" style="background:#2563EB;" data-hex="#2563EB" data-token="blue-700"></div>
+            <div class="swatch" style="background:#1E3A5F;" data-hex="#1E3A5F" data-token="blue-900"></div>
+          </div>
+        </div>
+        <div class="palette-card">
+          <div class="palette-title">Purple</div>
+          <div class="palette-use">Accents, tags</div>
+          <div class="palette-swatches">
+            <div class="swatch" style="background:#EDE9FE;" data-hex="#EDE9FE" data-token="purple-100"></div>
+            <div class="swatch" style="background:#C4B5FD;" data-hex="#C4B5FD" data-token="purple-200"></div>
+            <div class="swatch" style="background:#A78BFA;" data-hex="#A78BFA" data-token="purple-400"></div>
+            <div class="swatch" style="background:#7C3AED;" data-hex="#7C3AED" data-token="purple-700"></div>
+            <div class="swatch" style="background:#3B1A6E;" data-hex="#3B1A6E" data-token="purple-900"></div>
+          </div>
+        </div>
+        <div class="palette-card">
+          <div class="palette-title">Orange</div>
+          <div class="palette-use">Warnings, emphasis</div>
+          <div class="palette-swatches">
+            <div class="swatch" style="background:#FEE4CC;" data-hex="#FEE4CC" data-token="orange-100"></div>
+            <div class="swatch" style="background:#FDBE87;" data-hex="#FDBE87" data-token="orange-200"></div>
+            <div class="swatch" style="background:#F59E57;" data-hex="#F59E57" data-token="orange-400"></div>
+            <div class="swatch" style="background:#F06A1F;" data-hex="#F06A1F" data-token="orange-700"></div>
+            <div class="swatch" style="background:#7C2D12;" data-hex="#7C2D12" data-token="orange-900"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Component Showcase -->
+  <div class="slide slide-showcase" data-bg="light">
+    <div class="slide-inner" style="max-width:1060px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:16px;opacity:0.7;text-align:center;">13 &mdash; Components</div>
+      <h2>The Building Blocks</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <!-- Buttons -->
+        <div class="showcase-item" style="padding:28px 24px;align-items:stretch;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="sc-label" style="margin:0;">Buttons</div>
+            <div style="font-size:10px;color:var(--near-black);opacity:0.4;">Primary &middot; Secondary &middot; Ghost</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="sc-btn primary">Default</button>
+              <button class="sc-btn primary" style="background:#178C5C;">Active</button>
+              <button class="sc-btn primary" style="background:#1C9E6C;">Hover</button>
+              <button class="sc-btn primary" style="background:#265E45;outline:2px solid #1FAC76;outline-offset:2px;">Focus</button>
+              <button class="sc-btn primary" style="opacity:0.4;">Disabled</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="sc-btn secondary">Default</button>
+              <button class="sc-btn secondary" style="background:rgba(31,172,118,0.08);">Active</button>
+              <button class="sc-btn ghost">Ghost</button>
+              <button class="sc-btn secondary" style="opacity:0.4;">Disabled</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="sc-btn primary" style="background:#3B82F6;font-size:12px;">Info</button>
+              <button class="sc-btn primary" style="background:#D97706;font-size:12px;">Warning</button>
+              <button class="sc-btn primary" style="background:#DC2626;font-size:12px;">Danger</button>
+            </div>
+          </div>
+        </div>
+        <!-- Form Inputs -->
+        <div class="showcase-item" style="padding:28px 24px;align-items:stretch;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="sc-label" style="margin:0;">Form Inputs</div>
+            <div style="font-size:10px;color:var(--near-black);opacity:0.4;">Text &middot; Select &middot; Textarea</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div style="font-size:11px;font-weight:500;color:var(--near-black);margin-bottom:4px;">Email</div>
+              <input class="sc-input" value="randy@floqast.com" readonly style="border-color:var(--sage);">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:500;color:var(--near-black);margin-bottom:4px;">Department</div>
+              <div style="position:relative;">
+                <input class="sc-input" value="Design" readonly style="padding-right:28px;">
+                <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;color:#9BA3A8;">&#9662;</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;">
+                <div style="font-size:11px;font-weight:500;color:var(--near-black);margin-bottom:4px;">Start Date</div>
+                <input class="sc-input" value="03/01/2024" readonly>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:11px;font-weight:500;color:var(--near-black);margin-bottom:4px;">End Date</div>
+                <input class="sc-input" placeholder="MM/DD/YYYY" readonly style="border-color:#DC2626;">
+                <div style="font-size:10px;color:#DC2626;margin-top:2px;">Required field</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Toggle -->
+        <div class="showcase-item" style="padding:28px 24px;align-items:stretch;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="sc-label" style="margin:0;">Toggle</div>
+            <div style="font-size:10px;color:var(--near-black);opacity:0.4;">Sizes &middot; States &middot; Labels</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="sc-toggle off"></div>
+              <span style="font-size:12px;color:var(--near-black);">Default</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="sc-toggle"></div>
+              <span style="font-size:12px;color:var(--near-black);">Toggle on</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="sc-toggle" style="box-shadow:0 0 0 3px rgba(106,161,133,0.3);"></div>
+              <span style="font-size:12px;color:var(--near-black);">Focus</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="sc-toggle off" style="opacity:0.4;"></div>
+              <span style="font-size:12px;color:var(--near-black);opacity:0.4;">Disabled</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="sc-toggle" style="background:#DC2626;"></div>
+              <div>
+                <span style="font-size:12px;color:var(--near-black);">Error</span>
+                <div style="font-size:10px;color:#DC2626;">Error Message</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Forms & Tables -->
+        <div class="showcase-item" style="padding:28px 24px;align-items:stretch;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="sc-label" style="margin:0;">Badges &amp; Status</div>
+            <div style="font-size:10px;color:var(--near-black);opacity:0.4;">Tags &middot; Alerts &middot; Tabs</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span class="sc-badge info"><span class="badge-dot" style="background:#4B6BF5;"></span>In-progress</span>
+              <span class="sc-badge success"><span class="badge-icon material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">check_circle</span>Signed-off</span>
+              <span class="sc-badge warning"><span class="badge-icon material-symbols-outlined" style="font-size:14px;">warning</span>Incomplete</span>
+              <span class="sc-badge neutral"><span class="badge-icon material-symbols-outlined" style="font-size:14px;">lock</span>Not assigned</span>
+              <span class="sc-badge error"><span class="badge-dot" style="background:#E04545;"></span>Error</span>
+            </div>
+            <div class="sc-alert"><strong>Info:</strong> 3 reconciliation items need review before the close deadline.</div>
+            <div class="sc-alert" style="background:#FDE8E8;color:#7F1D1D;border-left-color:#DC2626;"><strong>Error:</strong> Reconciliation failed for 2 accounts.</div>
+            <div class="sc-tab-row" style="border-bottom:1px solid rgba(19,54,42,0.08);">
+              <div class="sc-tab active">Overview</div>
+              <div class="sc-tab">Reconciliation</div>
+              <div class="sc-tab">History</div>
+              <div class="sc-tab">Settings</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span class="sc-chip">Reconciliation</span>
+              <span class="sc-chip">Close Mgmt</span>
+              <span class="sc-chip" style="background:#DBEAFE;color:#1E3A5F;">Compliance</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 — Component Architecture -->
+  <div class="slide slide-components" data-bg="light">
+    <div class="slide-inner">
+      <div class="label">14 &mdash; Architecture</div>
+      <h2>Flow-UI Architecture</h2>
+      <div class="arch-diagram">
+        <div class="arch-layer layer-app">
+          <div>
+            <div class="layer-name">Product Features</div>
+            <div class="layer-desc">Reconciliation views, dashboards, workflows — composed from patterns below.</div>
+          </div>
+          <span class="layer-tag">Application</span>
+        </div>
+        <div class="arch-layer layer-pattern">
+          <div>
+            <div class="layer-name">Patterns</div>
+            <div class="layer-desc">Navbar, quick filters, data tables, form sections, card layouts — composed from core components.</div>
+          </div>
+          <span class="layer-tag">Composition</span>
+        </div>
+        <div class="arch-layer layer-core">
+          <div>
+            <div class="layer-name">Core Components</div>
+            <div class="layer-desc">Buttons, inputs, toggles, badges, alerts, signatures — auto layout + variants + scalable.</div>
+          </div>
+          <span class="layer-tag">Primitives</span>
+        </div>
+        <div class="arch-layer layer-token">
+          <div>
+            <div class="layer-name">Design Tokens</div>
+            <div class="layer-desc">Neutral, Brand, Red, Blue, Purple, Orange palettes &middot; Museo Sans + Inter type scale &middot; 4px spacing grid.</div>
+          </div>
+          <span class="layer-tag">Foundation</span>
+        </div>
+        <div class="arch-arrow-col">
+          <span>Abstraction</span>
+          <div style="font-size:18px;">&#8595;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Component Governance -->
+  <div class="slide slide-governance" data-bg="light">
+    <div class="slide-inner" style="max-width:960px;padding-top:20px;padding-bottom:80px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:12px;opacity:0.7;text-align:center;">15 &mdash; Governance</div>
+      <h2 style="margin-bottom:28px;text-align:center;">Reducing One-Off Components</h2>
+
+      <div class="flow-chart">
+        <!-- Start -->
+        <div class="flow-node flow-start">Designer needs a UI component</div>
+        <div class="flow-connector"></div>
+
+        <!-- Decision 1: Does it exist? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Does it exist in Flow-UI?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action green">Use existing component ✓</div>
+          </div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-no">No</div>
+        <div class="flow-connector" style="height:10px;"></div>
+
+        <!-- Decision 2: Already requested? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Has another team requested or built this?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action green">Collaborate with that team</div>
+          </div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-no">No</div>
+        <div class="flow-connector" style="height:10px;"></div>
+
+        <!-- Decision 3: Compose from primitives? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Can it be composed from existing primitives?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action green">Compose &amp; use ✓</div>
+          </div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-no">No</div>
+        <div class="flow-connector" style="height:10px;"></div>
+
+        <!-- Decision 4: Variant? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Is it a variant of an existing component?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action blue">Submit variant request<br>to DS team</div>
+          </div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-no">No — net new component</div>
+        <div class="flow-connector" style="height:10px;"></div>
+
+        <!-- Decision 5: Needed immediately? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Do you need it immediately?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action orange">Team builds it first</div>
+            <span class="flow-then">then</span>
+            <div class="flow-node flow-action dark" style="font-size:9px;">Sunset custom version<br>when DS ships official</div>
+          </div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-no">No</div>
+        <div class="flow-connector" style="height:10px;"></div>
+
+        <!-- Decision 6: Product-specific? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Is it product-specific?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action sage">Team owns &amp; manages it</div>
+          </div>
+        </div>
+        <div class="flow-connector"></div>
+        <div class="flow-no">No</div>
+        <div class="flow-connector" style="height:10px;"></div>
+
+        <!-- Decision 7: Rule of three? -->
+        <div class="flow-row">
+          <div class="flow-node flow-decision">Needed by 3+ teams?</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:4px;">
+            <span class="flow-yes">Yes</span><span class="flow-arrow">→</span>
+            <div class="flow-node flow-action blue">Submit to DS team for<br>company-wide adoption</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:2px;">
+          <span class="flow-no">Not yet</span><span class="flow-arrow" style="color:#9BA3A8;">→</span>
+          <span style="font-size:10px;color:#9BA3A8;font-style:italic;">Add to backlog, revisit when demand grows</span>
+        </div>
+
+        <!-- Quality Gates -->
+        <div class="flow-gates">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--sage);font-weight:700;align-self:center;">Quality gates</div>
+          <div class="flow-gate">
+            <span class="material-symbols-outlined">accessibility_new</span>
+            WCAG AA accessibility review
+          </div>
+          <div class="flow-gate">
+            <span class="material-symbols-outlined">description</span>
+            Documentation &amp; usage guidelines
+          </div>
+          <div class="flow-gate">
+            <span class="material-symbols-outlined">code</span>
+            Storybook examples
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SLIDE — Before / After -->
+  <div class="slide slide-beforeafter" data-bg="dark">
+    <div class="slide-inner" style="max-width:1000px;">
+      <div style="color:var(--off-white);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;margin-bottom:16px;text-align:center;opacity:0.7;">16 &mdash; Transformation</div>
+      <h2>Before &amp; After Flow-UI</h2>
+      <div class="ba-comparison">
+        <div class="ba-side before">
+          <h3>Before</h3>
+          <ul>
+            <li>Every team built their own button, modal, and form components</li>
+            <li>No shared design tokens &mdash; hard-coded hex values everywhere</li>
+            <li>WCAG failures on 60%+ of audited pages</li>
+            <li>Design-to-dev handoff took days of back-and-forth</li>
+          </ul>
+        </div>
+        <div class="ba-arrow">&rarr;</div>
+        <div class="ba-side after">
+          <h3>After</h3>
+          <ul>
+            <li>40+ shared components with variants, auto layout, and Storybook parity</li>
+            <li>Semantic design tokens synced between Figma and code</li>
+            <li>WCAG AA compliance across all product surfaces</li>
+            <li>Figma-to-code in hours, not days &mdash; with Code Connect</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 — Adoption & Impact -->
+  <div class="slide slide-impact" data-bg="light">
+    <div class="slide-inner">
+      <div class="label">17 &mdash; Results</div>
+      <h2>Adoption &amp; Impact</h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-value">3<span class="accent">x</span></div>
+          <div class="metric-label">Faster feature delivery</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">92<span class="accent">%</span></div>
+          <div class="metric-label">Component adoption across teams</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value">40<span class="accent">+</span></div>
+          <div class="metric-label">Core components shipped</div>
+        </div>
+      </div>
+      <div class="before-after">
+        <div class="ba-col before">
+          <h4>Before</h4>
+          <ul>
+            <li>12+ button variants, no single source of truth</li>
+            <li>3 days average to build a standard form</li>
+            <li>Inconsistent spacing and color usage</li>
+            <li>Ad-hoc accessibility fixes</li>
+          </ul>
+        </div>
+        <div class="ba-divider"></div>
+        <div class="ba-col after">
+          <h4>After</h4>
+          <ul>
+            <li>1 button component, 4 intentional variants</li>
+            <li>4 hours for the same form with system patterns</li>
+            <li>Token-driven consistency across all surfaces</li>
+            <li>WCAG 2.1 AA built into every primitive</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Team Growth -->
+  <div class="slide slide-teamgrowth" data-bg="light">
+    <div class="slide-inner" style="max-width:940px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:16px;opacity:0.7;">18 &mdash; Team Growth</div>
+      <h2 style="margin-bottom:28px;">Multiplying Impact</h2>
+      <div class="growth-grid">
+        <div class="growth-card">
+          <div class="gc-icon material-symbols-outlined">school</div>
+          <h3>Designer Onboarding</h3>
+          <p>Figma starter kits and annotated examples so new designers ship with Flow-UI in their first week.</p>
+        </div>
+        <div class="growth-card">
+          <div class="gc-icon material-symbols-outlined">rate_review</div>
+          <h3>Design Critique Process</h3>
+          <p>Weekly system critiques that became the feedback loop between product work and system evolution.</p>
+        </div>
+        <div class="growth-card">
+          <div class="gc-icon material-symbols-outlined">group_add</div>
+          <h3>Contribution Model</h3>
+          <p>PR-style reviews and shared Figma branches so any designer can propose components to the system.</p>
+        </div>
+        <div class="growth-card">
+          <div class="gc-icon material-symbols-outlined">psychology</div>
+          <h3>Systems Thinking Mentorship</h3>
+          <p>Shifted the team's default from "build for this ticket" to "build for the platform."</p>
+        </div>
+        <div class="growth-card">
+          <div class="gc-icon material-symbols-outlined">menu_book</div>
+          <h3>Living Documentation</h3>
+          <p>Every component ships with usage guidelines, dos/don'ts, and Storybook examples before merge.</p>
+        </div>
+        <div class="growth-card">
+          <div class="gc-icon material-symbols-outlined">diversity_3</div>
+          <h3>Office Hours</h3>
+          <p>Weekly open sessions for any team to bring questions, propose patterns, or flag duplication.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Showcase: Forms -->
+  <div class="slide slide-showcase-ba" data-bg="light" style="align-items:flex-start;overflow-y:auto;">
+    <div class="slide-inner" style="max-width:1400px;padding-top:40px;padding-bottom:60px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:12px;opacity:0.7;">19 &mdash; Showcase</div>
+      <h2 style="margin-bottom:24px;">Zeroheight Do's and Don'ts</h2>
+      <img src="screenshots/showcase_forms.png" alt="Flow-UI Button component documentation" style="width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.10);border:1px solid rgba(0,0,0,0.06);">
+    </div>
+  </div>
+
+  <!-- SLIDE — Showcase: Storybook Buttons -->
+  <div class="slide slide-showcase-ba" data-bg="light" style="align-items:flex-start;overflow-y:auto;">
+    <div class="slide-inner" style="max-width:1400px;padding-top:40px;padding-bottom:60px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:12px;opacity:0.7;">20 &mdash; Showcase</div>
+      <h2 style="margin-bottom:24px;">Storybook Buttons</h2>
+      <img src="screenshots/storybook_buttons.png" alt="Storybook Button component documentation" style="width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.10);border:1px solid rgba(0,0,0,0.06);">
+    </div>
+  </div>
+
+  <!-- SLIDE — Showcase: Homepage Before & After -->
+  <div class="slide slide-showcase-ba" data-bg="light" style="align-items:flex-start;overflow-y:auto;">
+    <div class="slide-inner" style="max-width:1400px;padding-top:40px;padding-bottom:60px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:12px;opacity:0.7;">21 &mdash; Showcase</div>
+      <h2 style="margin-bottom:24px;">Homepage &mdash; Before &amp; After</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div>
+          <h3 style="font-family:var(--font-display);font-size:18px;color:var(--dark-green);margin-bottom:12px;text-align:center;">Before</h3>
+          <img src="screenshots/floqast_home_before.png" alt="FloQast homepage before redesign" style="width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.10);border:1px solid rgba(0,0,0,0.06);">
+        </div>
+        <div>
+          <h3 style="font-family:var(--font-display);font-size:18px;color:var(--dark-green);margin-bottom:12px;text-align:center;">After</h3>
+          <img src="screenshots/floqast_home_after.png" alt="FloQast homepage after redesign" style="width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.10);border:1px solid rgba(0,0,0,0.06);">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — Showcase: Reconciliations -->
+  <div class="slide slide-showcase-ba" data-bg="light">
+    <div class="slide-inner" style="max-width:1400px;">
+      <div class="label" style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:var(--dark-green);font-weight:600;margin-bottom:12px;opacity:0.7;">22 &mdash; Showcase</div>
+      <h2 style="margin-bottom:24px;">Reconciliations</h2>
+      <div class="showcase-ba-layout" style="max-width:100%;gap:20px;">
+        <div class="showcase-ba-col before">
+          <h3>Before</h3>
+          <img src="screenshots/recs_before.png" alt="Reconciliations old design">
+        </div>
+        <div class="showcase-ba-col after">
+          <h3>After</h3>
+          <div class="img-match-wrap">
+            <img src="screenshots/recs_after.png" alt="Reconciliations redesign">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — What the Future Holds -->
+  <div class="slide" data-bg="dark">
+    <div class="slide-inner" style="max-width:1000px;">
+      <div style="color:var(--sage);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;margin-bottom:16px;text-align:center;opacity:0.7;">23 &mdash; Looking Ahead</div>
+      <h2 style="color:var(--white);text-align:center;margin-bottom:36px;">What the Future Holds</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px 24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(106,161,133,0.2);display:flex;align-items:center;justify-content:center;">
+              <span class="material-symbols-outlined" style="color:var(--sage);font-size:22px;">design_services</span>
+            </div>
+            <h3 style="color:var(--white);font-size:16px;font-weight:700;font-family:var(--font-display);">Figma MCP</h3>
+          </div>
+          <p style="color:var(--off-white);font-size:13px;line-height:1.6;opacity:0.8;">AI-powered design-to-code pipelines using Figma's Model Context Protocol &mdash; bridging design intent directly into production components.</p>
+        </div>
+        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px 24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(240,106,31,0.15);display:flex;align-items:center;justify-content:center;">
+              <span class="material-symbols-outlined" style="color:var(--orange);font-size:22px;">smart_toy</span>
+            </div>
+            <h3 style="color:var(--white);font-size:16px;font-weight:700;font-family:var(--font-display);">Claude &amp; AI Agents</h3>
+          </div>
+          <p style="color:var(--off-white);font-size:13px;line-height:1.6;opacity:0.8;">LLM-assisted component generation, automated accessibility audits, and AI-driven documentation that stays in sync with the codebase.</p>
+        </div>
+        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px 24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(106,161,133,0.2);display:flex;align-items:center;justify-content:center;">
+              <span class="material-symbols-outlined" style="color:var(--sage);font-size:22px;">bolt</span>
+            </div>
+            <h3 style="color:var(--white);font-size:16px;font-weight:700;font-family:var(--font-display);">AI Automation</h3>
+          </div>
+          <p style="color:var(--off-white);font-size:13px;line-height:1.6;opacity:0.8;">Automated visual regression testing, token syncing, and CI/CD workflows that catch design drift before it ships to production.</p>
+        </div>
+        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px 24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(240,106,31,0.15);display:flex;align-items:center;justify-content:center;">
+              <span class="material-symbols-outlined" style="color:var(--orange);font-size:22px;">menu_book</span>
+            </div>
+            <h3 style="color:var(--white);font-size:16px;font-weight:700;font-family:var(--font-display);">Storybook MCP</h3>
+          </div>
+          <p style="color:var(--off-white);font-size:13px;line-height:1.6;opacity:0.8;">Connecting Storybook directly to AI workflows via MCP &mdash; enabling live component previews, usage analytics, and contextual documentation in dev tools.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE — AI-Powered Workflow -->
+  <div class="slide" data-bg="dark">
+    <div class="slide-inner" style="max-width:1000px;">
+      <div style="color:var(--sage);font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;margin-bottom:16px;text-align:center;opacity:0.7;">24 &mdash; Future Workflow</div>
+      <h2 style="color:var(--white);text-align:center;margin-bottom:12px;">From Design to Production, Faster</h2>
+      <p style="color:var(--off-white);opacity:0.5;text-align:center;font-size:14px;margin-bottom:48px;">AI-assisted pipeline reduces component delivery from days to hours</p>
+
+      <!-- Flow diagram -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:nowrap;">
+
+        <!-- Figma -->
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="width:80px;height:80px;border-radius:16px;background:rgba(106,161,133,0.15);border:1px solid rgba(106,161,133,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <span class="material-symbols-outlined" style="color:var(--sage);font-size:36px;">design_services</span>
+          </div>
+          <div style="color:var(--white);font-size:14px;font-weight:700;font-family:var(--font-display);">Figma</div>
+          <div style="color:var(--off-white);font-size:11px;opacity:0.5;margin-top:2px;">Design source</div>
+        </div>
+
+        <!-- Arrow 1: Figma MCP -->
+        <div style="display:flex;flex-direction:column;align-items:center;padding:0 8px;flex-shrink:0;">
+          <div style="color:var(--sage);font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">MCP</div>
+          <div style="width:60px;height:2px;background:linear-gradient(90deg,var(--sage),var(--orange));border-radius:1px;position:relative;">
+            <div style="position:absolute;right:-4px;top:-3px;width:0;height:0;border-left:6px solid var(--orange);border-top:4px solid transparent;border-bottom:4px solid transparent;"></div>
+          </div>
+        </div>
+
+        <!-- Claude -->
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="width:80px;height:80px;border-radius:16px;background:rgba(240,106,31,0.12);border:1px solid rgba(240,106,31,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <span class="material-symbols-outlined" style="color:var(--orange);font-size:36px;">smart_toy</span>
+          </div>
+          <div style="color:var(--white);font-size:14px;font-weight:700;font-family:var(--font-display);">Claude</div>
+          <div style="color:var(--off-white);font-size:11px;opacity:0.5;margin-top:2px;">AI generation</div>
+        </div>
+
+        <!-- Arrow 2: Code gen -->
+        <div style="display:flex;flex-direction:column;align-items:center;padding:0 8px;flex-shrink:0;">
+          <div style="color:var(--orange);font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">Code</div>
+          <div style="width:60px;height:2px;background:linear-gradient(90deg,var(--orange),var(--sage));border-radius:1px;position:relative;">
+            <div style="position:absolute;right:-4px;top:-3px;width:0;height:0;border-left:6px solid var(--sage);border-top:4px solid transparent;border-bottom:4px solid transparent;"></div>
+          </div>
+        </div>
+
+        <!-- Storybook -->
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="width:80px;height:80px;border-radius:16px;background:rgba(106,161,133,0.15);border:1px solid rgba(106,161,133,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <span class="material-symbols-outlined" style="color:var(--sage);font-size:36px;">menu_book</span>
+          </div>
+          <div style="color:var(--white);font-size:14px;font-weight:700;font-family:var(--font-display);">Storybook</div>
+          <div style="color:var(--off-white);font-size:11px;opacity:0.5;margin-top:2px;">Documentation</div>
+        </div>
+
+        <!-- Arrow 3: Deploy -->
+        <div style="display:flex;flex-direction:column;align-items:center;padding:0 8px;flex-shrink:0;">
+          <div style="color:var(--sage);font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">Ship</div>
+          <div style="width:60px;height:2px;background:linear-gradient(90deg,var(--sage),var(--white));border-radius:1px;position:relative;">
+            <div style="position:absolute;right:-4px;top:-3px;width:0;height:0;border-left:6px solid var(--white);border-top:4px solid transparent;border-bottom:4px solid transparent;"></div>
+          </div>
+        </div>
+
+        <!-- Production -->
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="width:80px;height:80px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <span class="material-symbols-outlined" style="color:var(--white);font-size:36px;">rocket_launch</span>
+          </div>
+          <div style="color:var(--white);font-size:14px;font-weight:700;font-family:var(--font-display);">Production</div>
+          <div style="color:var(--off-white);font-size:11px;opacity:0.5;margin-top:2px;">Live product</div>
+        </div>
+
+      </div>
+
+      <!-- Time comparison -->
+      <div style="margin-top:52px;display:flex;gap:24px;justify-content:center;">
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:20px 32px;text-align:center;">
+          <div style="color:var(--off-white);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;opacity:0.5;margin-bottom:6px;">Today</div>
+          <div style="color:var(--off-white);font-size:28px;font-weight:700;font-family:var(--font-display);opacity:0.4;">3&ndash;5 days</div>
+          <div style="color:var(--off-white);font-size:11px;opacity:0.35;margin-top:4px;">Design &rarr; handoff &rarr; build &rarr; review &rarr; docs</div>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <span class="material-symbols-outlined" style="color:var(--sage);font-size:28px;">trending_flat</span>
+        </div>
+        <div style="background:rgba(106,161,133,0.08);border:1px solid rgba(106,161,133,0.2);border-radius:10px;padding:20px 32px;text-align:center;">
+          <div style="color:var(--sage);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">With AI Pipeline</div>
+          <div style="color:var(--sage);font-size:28px;font-weight:700;font-family:var(--font-display);">2&ndash;4 hours</div>
+          <div style="color:var(--off-white);font-size:11px;opacity:0.5;margin-top:4px;">Design &rarr; AI generates code + docs &rarr; review</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SLIDE 8 — Thank You -->
+  <div class="slide slide-thanks" data-bg="dark">
+    <div class="slide-inner">
+      <h2>Thank you.</h2>
+      <div class="divider-line"></div>
+      <p>Questions, thoughts, or war stories about design systems? Let's talk.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nav Dots -->
+<button id="fullscreen-btn" title="Toggle fullscreen"><span class="material-symbols-outlined">fullscreen</span></button>
+<div id="nav-dots"></div>
+
+<!-- Slide Counter -->
+<div id="slide-counter"></div>
+
+<script>
+  // ─── Math Background ───
+  (function initMathBg() {
+    const symbols = ['∑','∫','π','√','∞','Δ','θ','±','≈','∂','φ','λ','Ω','%','÷','×','∇','∮','≠','≤','≥','α','β','σ','μ','=','√','%','∛','⁼','∝','⅀'];
+    const container = document.getElementById('math-bg');
+    const count = 32;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      el.className = 'math-sym';
+      el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+      const size = 14 + Math.random() * 28;
+      const left = Math.random() * 100;
+      const duration = 25 + Math.random() * 40;
+      const delay = -(Math.random() * duration);
+      const peakOpacity = 0.04 + Math.random() * 0.06;
+      const rotation = 60 + Math.random() * 240;
+      el.style.cssText = `
+        font-size:${size}px;
+        left:${left}%;
+        animation-duration:${duration}s;
+        animation-delay:${delay}s;
+        --peak-opacity:${peakOpacity};
+        --rot:${rotation}deg;
+      `;
+      container.appendChild(el);
+    }
+  })();
+
+  // ─── Slides ───
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  // Sub-step state for animated slides
+  const subSteps = {};
+  slides.forEach((s, i) => {
+    const n = parseInt(s.dataset.substeps || '0');
+    if (n > 0) subSteps[i] = { total: n, current: 0 };
+  });
+
+  const stageTitles = [
+    'Understanding Team Impact',
+    'Design System Rollout Timeline',
+    'Roadmap Planning',
+    'Current State Assessment'
+  ];
+
+  function setSubStep(slideIdx, step) {
+    const slide = slides[slideIdx];
+    const views = slide.querySelectorAll('.stage-view');
+    const pips = slide.querySelectorAll('.stage-pip');
+    const title = slide.querySelector('#teamimpact-title');
+    views.forEach((v, i) => {
+      v.classList.toggle('active', i === step);
+    });
+    pips.forEach((p, i) => {
+      p.classList.toggle('active', i === step);
+    });
+    if (title && stageTitles[step]) title.textContent = stageTitles[step];
+  }
+
+  // Match before/after image heights — scale after column width so image fills height
+  function matchShowcaseHeights() {
+    document.querySelectorAll('.showcase-ba-layout').forEach(layout => {
+      const beforeImg = layout.querySelector('.before img');
+      const afterImg = layout.querySelector('.img-match-wrap img');
+      if (!beforeImg || !afterImg || !beforeImg.naturalWidth) return;
+      const bh = beforeImg.offsetHeight;
+      // Calculate what width the after image needs to display at bh height
+      const afterRatio = afterImg.naturalWidth / afterImg.naturalHeight;
+      const neededWidth = bh * afterRatio;
+      const beforeRatio = beforeImg.naturalWidth / beforeImg.naturalHeight;
+      const neededBeforeWidth = bh * beforeRatio;
+      // Set grid columns proportionally
+      layout.style.gridTemplateColumns = neededBeforeWidth + 'fr ' + neededWidth + 'fr';
+      // Let both images fill naturally
+      const wrap = layout.querySelector('.img-match-wrap');
+      if (wrap) wrap.style.height = '';
+      afterImg.style.width = '100%';
+      afterImg.style.height = 'auto';
+      afterImg.style.objectFit = '';
+    });
+  }
+  window.addEventListener('load', matchShowcaseHeights);
+  window.addEventListener('resize', matchShowcaseHeights);
+
+  // Lightbox
+  function openLightbox(src) {
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightbox-img').src = src;
+    lb.classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+  // Make showcase images clickable
+  document.querySelectorAll('.slide-showcase-ba img:not(#lightbox-img)').forEach(img => {
+    img.classList.add('zoomable');
+    img.addEventListener('click', e => {
+      e.stopPropagation();
+      openLightbox(img.src);
+    });
+  });
+
+  // Sequential org chart cascade animation
+  let orgAnimTimeouts = [];
+  function resetOrgChart() {
+    orgAnimTimeouts.forEach(t => clearTimeout(t));
+    orgAnimTimeouts = [];
+    const container = document.querySelector('.org-chart-container');
+    if (!container) return;
+    container.querySelectorAll('.org-anim, .org-line-v, .org-line-h, .org-line-drop-l, .org-line-drop-r, .org-line-down, .team-bubble').forEach(el => {
+      el.classList.remove('show');
+    });
+  }
+  function animateOrgChart() {
+    resetOrgChart();
+    const container = document.querySelector('.org-chart-container');
+    if (!container) return;
+    const q = (sel) => container.querySelectorAll(sel);
+    const qa = (attr) => container.querySelectorAll(`[data-org="${attr}"]`);
+    let t = 300;
+    // 1. CTO slides in
+    orgAnimTimeouts.push(setTimeout(() => { qa('cto').forEach(el => el.classList.add('show')); }, t));
+    t += 500;
+    // 2. Vertical line down from CTO
+    orgAnimTimeouts.push(setTimeout(() => { qa('line1').forEach(el => el.classList.add('show')); }, t));
+    t += 400;
+    // 3. Horizontal bar draws outward
+    orgAnimTimeouts.push(setTimeout(() => { qa('line-h').forEach(el => el.classList.add('show')); }, t));
+    t += 300;
+    // 4. Drop lines fall down
+    orgAnimTimeouts.push(setTimeout(() => {
+      qa('drop-l').forEach(el => el.classList.add('show'));
+      qa('drop-r').forEach(el => el.classList.add('show'));
+    }, t));
+    t += 400;
+    // 5. Randy + Sr Director appear
+    orgAnimTimeouts.push(setTimeout(() => {
+      qa('randy').forEach(el => el.classList.add('show'));
+      qa('sr-dir').forEach(el => el.classList.add('show'));
+    }, t));
+    t += 500;
+    // 6. Lines draw down from Randy + from Sr Director to Platform Eng
+    orgAnimTimeouts.push(setTimeout(() => {
+      qa('line-left-down').forEach(el => el.classList.add('show'));
+      qa('line-sr-to-plat').forEach(el => el.classList.add('show'));
+    }, t));
+    t += 400;
+    // 7. Platform Engineering appears
+    orgAnimTimeouts.push(setTimeout(() => { qa('plat-eng').forEach(el => el.classList.add('show')); }, t));
+    t += 500;
+    // 8. Line draws down from Platform Eng to engineers
+    orgAnimTimeouts.push(setTimeout(() => { qa('line-plat-down').forEach(el => el.classList.add('show')); }, t));
+    t += 400;
+    // 9. Team bubbles pop in with stagger
+    const leftBubbles = qa('team-l');
+    const rightBubbles = qa('team-r');
+    leftBubbles.forEach((b, i) => {
+      orgAnimTimeouts.push(setTimeout(() => { b.classList.add('show'); }, t + i * 80));
+    });
+    rightBubbles.forEach((b, i) => {
+      orgAnimTimeouts.push(setTimeout(() => { b.classList.add('show'); }, t + i * 80));
+    });
+    t += Math.max(leftBubbles.length, rightBubbles.length) * 80 + 100;
+    // 10. Labels fade in
+    orgAnimTimeouts.push(setTimeout(() => {
+      qa('team-l-label').forEach(el => el.classList.add('show'));
+      qa('team-r-label').forEach(el => el.classList.add('show'));
+    }, t));
+  }
+
+  // Build dots
+  const dotsContainer = document.getElementById('nav-dots');
+  slides.forEach((_, i) => {
+    const d = document.createElement('button');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.setAttribute('aria-label', `Slide ${i + 1}`);
+    d.onclick = () => goTo(i);
+    dotsContainer.appendChild(d);
+  });
+
+  const dots = document.querySelectorAll('.dot');
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('slide-counter');
+
+  function updateMathColors() {
+    const bg = slides[current].dataset.bg;
+    const mathBg = document.getElementById('math-bg');
+    const syms = document.querySelectorAll('.math-sym');
+    if (bg === 'dark') {
+      mathBg.style.opacity = '1';
+      syms.forEach(s => { s.style.color = 'var(--sage)'; });
+    } else {
+      mathBg.style.opacity = '0';
+      syms.forEach(s => { s.style.color = 'var(--dark-green)'; });
+    }
+  }
+
+  function goTo(index) {
+    if (index < 0 || index >= total || index === current) return;
+    slides[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    // Reset sub-steps when leaving
+    if (subSteps[current]) {
+      subSteps[current].current = 0;
+      setSubStep(current, 0);
+    }
+    current = index;
+    slides[current].classList.add('active');
+    dots[current].classList.add('active');
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    counter.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+    updateMathColors();
+    // Redraw eco lines when entering the team impact slide so animation replays
+    if (slides[current].classList.contains('slide-teamimpact')) {
+      setTimeout(drawEcoLines, 50);
+    }
+    // Trigger org chart cascade when entering that slide
+    if (slides[current].querySelector('.org-chart-container')) {
+      animateOrgChart();
+    } else {
+      resetOrgChart();
+    }
+  }
+
+  function go(dir) {
+    // Handle sub-steps for animated slides
+    if (subSteps[current]) {
+      const sub = subSteps[current];
+      const nextSub = sub.current + dir;
+      if (nextSub >= 0 && nextSub < sub.total) {
+        sub.current = nextSub;
+        setSubStep(current, nextSub);
+        return;
+      }
+      // If going forward past last sub-step, go to next slide
+      // If going backward past first sub-step, go to prev slide
+    }
+    goTo(current + dir);
+  }
+
+  // Init counter
+  counter.textContent = '01 / ' + String(total).padStart(2, '0');
+  updateMathColors();
+
+  // Fullscreen
+  const fsBtn = document.getElementById('fullscreen-btn');
+  const fsIcon = fsBtn.querySelector('.material-symbols-outlined');
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+  fsBtn.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', () => {
+    fsIcon.textContent = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
+  });
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); return; }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    if (e.key === 'End')  { e.preventDefault(); goTo(total - 1); }
+  });
+
+  // Generate swatch tooltips
+  document.querySelectorAll('.swatch').forEach(s => {
+    const hex = s.dataset.hex;
+    const token = s.dataset.token;
+    const tip = document.createElement('div');
+    tip.className = 'swatch-tooltip';
+    tip.innerHTML = `<span class="tt-hex">${hex}</span><span class="tt-token">${token}</span>`;
+    s.appendChild(tip);
+  });
+
+  // Draw lines from center to each eco-node
+  function drawEcoLines() {
+    const hub = document.getElementById('eco-hub');
+    const svg = document.getElementById('eco-lines-svg');
+    if (!hub || !svg) return;
+    const nodes = hub.querySelectorAll('.eco-node');
+    const hubRect = hub.getBoundingClientRect();
+    const cx = hub.offsetWidth / 2;
+    const cy = hub.offsetHeight / 2;
+    svg.innerHTML = '';
+    nodes.forEach(node => {
+      const nodeIcon = node.querySelector('.node-icon');
+      const nodeRect = nodeIcon.getBoundingClientRect();
+      const nx = nodeRect.left - hubRect.left + nodeRect.width / 2;
+      const ny = nodeRect.top - hubRect.top + nodeRect.height / 2;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', cx);
+      line.setAttribute('y1', cy);
+      line.setAttribute('x2', nx);
+      line.setAttribute('y2', ny);
+      const len = Math.sqrt((nx - cx) ** 2 + (ny - cy) ** 2);
+      line.style.strokeDasharray = len;
+      line.style.strokeDashoffset = len;
+      svg.appendChild(line);
+    });
+  }
+  // Draw lines after layout settles and on resize
+  setTimeout(drawEcoLines, 100);
+  window.addEventListener('resize', drawEcoLines);
+
+  // Ripple on click
+  const ecoCenter = document.querySelector('.eco-center');
+  if (ecoCenter) {
+    ecoCenter.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const container = document.querySelector('.eco-ripple-container');
+      if (container) {
+        container.classList.remove('rippling');
+        void container.offsetWidth;
+        container.classList.add('rippling');
+      }
+    });
+  }
+
+  // Touch support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+</script>
+</body>
+</html>
